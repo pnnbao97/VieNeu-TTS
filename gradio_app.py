@@ -1,17 +1,3 @@
-import gradio as gr
-import soundfile as sf
-import tempfile
-import torch
-from vieneu_tts import VieNeuTTS, FastVieNeuTTS
-import os
-import time
-import numpy as np
-import re
-from typing import Generator
-import queue
-import threading
-import yaml
-from utils.core_utils import split_text_into_chunks
 
 print("⏳ Đang khởi động VieNeu-TTS...")
 
