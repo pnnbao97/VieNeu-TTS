@@ -52,8 +52,17 @@ def _setup_windows_espeak():
 
 def _setup_linux_espeak():
     """Setup eSpeak for Linux."""
+    # First check environment variable
+    espeak_lib = os.environ.get('PHONEMIZER_ESPEAK_LIBRARY')
+    if espeak_lib and os.path.exists(espeak_lib):
+        EspeakWrapper.set_library(espeak_lib)
+        return
+    
+    # Search common library paths
     search_patterns = [
-        "/usr/lib/x86_64-linux-gnu/libespeak-ng.so*",
+        "/usr/lib/aarch64-linux-gnu/libespeak-ng.so*",  # ARM64
+        "/usr/lib/x86_64-linux-gnu/libespeak-ng.so*",    # x86_64
+        "/usr/lib/arm-linux-gnueabihf/libespeak-ng.so*", # ARM32
         "/usr/lib/x86_64-linux-gnu/libespeak.so*",
         "/usr/lib/libespeak-ng.so*",
         "/usr/lib64/libespeak-ng.so*",

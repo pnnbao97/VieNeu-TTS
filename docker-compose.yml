@@ -11,7 +11,7 @@ x-base-config: &base-config
   tty: true
   ports:
     - "${PORT}:${GRADIO_SERVER_PORT}"
-  command: ["uv", "run", "gradio_app.py"]
+  command: ["uv", "run", "server.py"]
 
 services:
   # ========================================================

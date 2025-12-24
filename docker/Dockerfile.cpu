@@ -4,9 +4,11 @@ FROM python:3.12-slim AS base
 ENV DEBIAN_FRONTEND=noninteractive \
     PYTHONUNBUFFERED=1 \
     HF_HOME=/root/.cache/huggingface \
-    PHONEMIZER_ESPEAK_LIBRARY=/usr/lib/x86_64-linux-gnu/libespeak-ng.so.1 \
     UV_PROJECT_ENVIRONMENT="/opt/venv" \
     PATH="/opt/venv/bin:$PATH"
+
+# Note: PHONEMIZER_ESPEAK_LIBRARY will be auto-detected by the Python code
+# The improved phonemize_text.py now searches for ARM64, x86_64, and other architectures
 
 # Cài đặt các dependencies hệ thống
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -31,8 +33,8 @@ FROM base AS dev
 COPY pyproject.toml.cpu ./pyproject.toml
 COPY uv.lock.cpu ./uv.lock
 RUN uv sync
-# Command mặc định cho dev (có thể override)
-CMD ["python", "gradio_app.py"]
+# Command mặc định cho dev - chạy cả API và UI
+CMD ["python", "server.py"]
 
 # --- Stage: Production ---
 FROM base AS prod
@@ -46,8 +48,8 @@ COPY uv.lock.cpu uv.lock
 # Cài đặt dependencies (không bao gồm dev deps)
 RUN uv sync --no-dev
 
-# Expose port
+# Expose port (7860 cho cả Gradio UI và REST API)
 EXPOSE 7860
-# Command mặc định cho prod
-CMD ["uv", "run", "gradio_app.py", "--server-name", "0.0.0.0", "--server-port", "7860"]
+# Command mặc định cho prod - chạy cả API và UI thông qua server.py
+CMD ["uv", "run", "server.py"]
 

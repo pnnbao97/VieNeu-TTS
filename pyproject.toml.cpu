@@ -1,9 +1,9 @@
-
 [tool.uv]
 index-strategy = "unsafe-best-match"
 required-environments = [
     "sys_platform == 'win32' and platform_machine == 'AMD64'",
     "sys_platform == 'linux' and platform_machine == 'x86_64'",
+    "sys_platform == 'darwin' and platform_machine == 'arm64'",
 ]
 
 [[tool.uv.index]]
@@ -12,9 +12,9 @@ url = "https://download.pytorch.org/whl/cpu"
 explicit = true
 
 [tool.uv.sources]
-torch = { index = "pytorch-cpu" }
-torchaudio = { index = "pytorch-cpu" }
-llama-cpp-python = { index = "llama-cpp-python-whl", marker = "sys_platform == 'win32'" }
+torch = { index = "pytorch-cpu", marker = "sys_platform != 'darwin'" }
+torchaudio = { index = "pytorch-cpu", marker = "sys_platform != 'darwin'" }
+llama-cpp-python = { index = "llama-cpp-python-whl", marker = "sys_platform == 'win32' or sys_platform == 'linux'" }
 
 [[tool.uv.index]]
 name = "llama-cpp-python-whl"

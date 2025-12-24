@@ -4,9 +4,11 @@ FROM nvidia/cuda:13.0.0-runtime-ubuntu24.04 AS base
 ENV DEBIAN_FRONTEND=noninteractive \
     PYTHONUNBUFFERED=1 \
     HF_HOME=/root/.cache/huggingface \
-    PHONEMIZER_ESPEAK_LIBRARY=/usr/lib/x86_64-linux-gnu/libespeak-ng.so.1 \
     UV_PROJECT_ENVIRONMENT="/opt/venv" \
     PATH="/opt/venv/bin:$PATH"
+
+# Note: PHONEMIZER_ESPEAK_LIBRARY will be auto-detected by the Python code
+# The improved phonemize_text.py now searches for ARM64, x86_64, and other architectures
 
 # Cài đặt Python 3.12 và dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -40,8 +42,8 @@ WORKDIR /workspace
 FROM base AS dev
 COPY pyproject.toml uv.lock requirements.txt ./
 RUN uv sync
-
-CMD ["/bin/bash"]
+# Command mặc định cho dev - chạy cả API và UI
+CMD ["python", "server.py"]
 
 # --- Stage: Production ---
 FROM base AS prod
@@ -49,6 +51,8 @@ COPY . .
 # Enable frozen sync as we have the correct uv.lock
 RUN uv sync --no-dev
 
+# Expose port (7860 cho cả Gradio UI và REST API)
 EXPOSE 7860
-CMD ["uv", "run", "gradio_app.py", "--server-name", "0.0.0.0", "--server-port", "7860"]
+# Command mặc định cho prod - chạy cả API và UI thông qua server.py
+CMD ["uv", "run", "server.py"]
 
