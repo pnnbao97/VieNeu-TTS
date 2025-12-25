@@ -700,14 +700,14 @@ with gr.Blocks(theme=theme, css=css, title="VieNeu-TTS") as demo:
                 )
                 
                 with gr.Tabs() as tabs:
-                    with gr.TabItem("👤 Preset", id="preset_mode"):
+                    with gr.TabItem("👤 Preset", id="preset_mode") as tab_preset:
                         initial_voices = get_voice_options("VieNeu-TTS (GPU)")
                         default_voice = initial_voices[0] if initial_voices else None
                         voice_select = gr.Dropdown(initial_voices, value=default_voice, label="Giọng mẫu")
                     
-                    with gr.TabItem("🎙️ Custom", id="custom_mode"):
-                        custom_audio = gr.Audio(label="File mẫu (.wav)", type="filepath")
-                        custom_text = gr.Textbox(label="Lời thoại mẫu")
+                    with gr.TabItem("🦜 Voice Cloning", id="custom_mode") as tab_custom:
+                        custom_audio = gr.Audio(label="Audio giọng mẫu (10-15 giây) (.wav)", type="filepath")
+                        custom_text = gr.Textbox(label="Nội dung audio mẫu - vui lòng gõ đúng nội dung của audio mẫu - kể cả dấu câu vì model rất nhạy cảm với dấu câu (.,?!)")
                 
                 generation_mode = gr.Radio(
                     ["Standard (Một lần)"],
@@ -720,7 +720,8 @@ with gr.Blocks(theme=theme, css=css, title="VieNeu-TTS") as demo:
                     info="Xử lý nhiều đoạn cùng lúc (chỉ áp dụng khi sử dụng GPU và đã cài đặt LMDeploy)"
                 )
                 
-                current_mode = gr.Textbox(visible=False, value="preset_mode")
+                # State to track current mode (replaces unreliable Textbox/Tabs input)
+                current_mode_state = gr.State("preset_mode")
                 
                 btn_generate = gr.Button("🎵 Bắt đầu", variant="primary", size="lg", interactive=False)
             
@@ -740,8 +741,9 @@ with gr.Blocks(theme=theme, css=css, title="VieNeu-TTS") as demo:
         backbone_select.change(update_info, backbone_select, model_status)
         backbone_select.change(update_voice_dropdown, [backbone_select, voice_select], voice_select)
         
-        tabs.children[0].select(lambda: "preset_mode", outputs=current_mode)
-        tabs.children[1].select(lambda: "custom_mode", outputs=current_mode)
+        # Bind tab events to update state
+        tab_preset.select(lambda: "preset_mode", outputs=current_mode_state)
+        tab_custom.select(lambda: "custom_mode", outputs=current_mode_state)
         
         btn_load.click(
             fn=load_model,
@@ -751,7 +753,7 @@ with gr.Blocks(theme=theme, css=css, title="VieNeu-TTS") as demo:
         
         btn_generate.click(
             fn=synthesize_speech,
-            inputs=[text_input, voice_select, custom_audio, custom_text, current_mode, generation_mode, use_batch],
+            inputs=[text_input, voice_select, custom_audio, custom_text, current_mode_state, generation_mode, use_batch],
             outputs=[audio_output, status_output]
         )
 
