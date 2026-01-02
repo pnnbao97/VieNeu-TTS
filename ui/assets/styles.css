@@ -1,0 +1,200 @@
+.container { max-width: 1400px; margin: auto; }
+.header-box {
+    text-align: center;
+    margin-bottom: 25px;
+    padding: 25px;
+    background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+    border-radius: 12px;
+    color: white !important;
+}
+.header-title {
+    font-size: 2.5rem;
+    font-weight: 800;
+    color: white !important;
+}
+.gradient-text {
+    background: -webkit-linear-gradient(45deg, #60A5FA, #22D3EE);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
+.header-icon {
+    color: white;
+}
+.status-box {
+    font-weight: bold;
+    text-align: center;
+    border: none;
+    background: transparent;
+}
+.model-card-content {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    align-items: center;
+    gap: 15px;
+    font-size: 0.9rem;
+    text-align: center;
+    color: white !important;
+}
+.model-card-item {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    color: white !important;
+}
+.model-card-item strong {
+    color: white !important;
+}
+.model-card-item span {
+    color: white !important;
+}
+.model-card-link {
+    color: #60A5FA;
+    text-decoration: none;
+    font-weight: 500;
+    transition: color 0.2s;
+}
+.model-card-link:hover {
+    color: #22D3EE;
+    text-decoration: underline;
+}
+.multi-line-card {
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
+    padding: 14px;
+    margin-bottom: 14px;
+    background: #ffffff;
+    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.08);
+    position: relative;
+    transition: transform 0.12s ease, box-shadow 0.12s ease, opacity 0.12s ease;
+}
+.multi-line-card.active {
+    border-color: #cbd5f5;
+    box-shadow: 0 2px 8px rgba(59, 130, 246, 0.12);
+}
+.multi-line-card.collapsed {
+    padding: 10px 14px;
+    background: #f8fafc;
+    cursor: pointer;
+}
+.multi-line-card.collapsed .multi-line-header {
+    margin-bottom: 0;
+}
+.multi-line-card.collapsed .multi-line-header ~ * {
+    display: none !important;
+}
+.collapsed-summary {
+    display: none;
+    margin-top: 6px;
+    color: #64748b;
+    font-size: 0.92rem;
+    line-height: 1.3;
+}
+.multi-line-card.collapsed .collapsed-summary {
+    display: -webkit-box !important;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    max-height: 2.6em;
+}
+.multi-title-row {
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    margin-bottom: 8px;
+    flex-wrap: nowrap;
+}
+.multi-title {
+    margin-bottom: 0 !important;
+    flex: 1 1 auto;
+}
+.multi-title-row .gr-markdown {
+    flex: 1 1 auto;
+    width: auto;
+}
+.multi-title-row .gr-button {
+    flex: 0 0 auto;
+    width: auto;
+}
+.multi-line-header {
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+}
+.multi-line-title {
+    font-size: 1rem;
+    font-weight: 600;
+    margin-bottom: 6px;
+}
+.multi-line-card.dragging {
+    opacity: 0.6;
+    border-color: #93c5fd;
+    background: #f8fafc;
+    box-shadow: 0 10px 24px rgba(59, 130, 246, 0.2);
+    transform: scale(0.98);
+}
+.multi-line-card.dragging::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border: 2px dashed #93c5fd;
+    border-radius: 12px;
+    pointer-events: none;
+}
+.drag-handle {
+    cursor: grab;
+    color: #94a3b8;
+    font-size: 1.1rem;
+    user-select: none;
+    padding: 2px 6px;
+    border-radius: 6px;
+    touch-action: none;
+}
+.drag-handle:hover {
+    background: #f1f5f9;
+    color: #64748b;
+}
+
+.icon-button button {
+    min-width: 26px;
+    width: 26px;
+    height: 26px;
+    padding: 0;
+    font-size: 0.95rem;
+    line-height: 1;
+    border-radius: 8px;
+}
+
+.remove-button {
+    min-width: 26px;
+    width: 13px;
+    height: 26px;
+    padding: 0 6px;
+    font-size: 0.95rem;
+    line-height: 1;
+    border-radius: 8px;
+}
+.multi-title-row
+.multi-title-row .icon-button button {
+    background: #f8fafc;
+}
+.multi-title-row .icon-button button:hover {
+    background: #eef2f7;
+}
+.icon-danger button {
+    color: #b91c1c;
+}
+.icon-danger:hover,
+.icon-danger button:hover {
+    background: #fee2e2;
+}
+body.multi-dragging {
+    cursor: grabbing;
+    user-select: none;
+}
+@media (max-width: 768px) {
+    .multi-line-card {
+        padding: 12px;
+    }
+}
