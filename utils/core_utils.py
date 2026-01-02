@@ -45,3 +45,9 @@ def split_text_into_chunks(text: str, max_chars: int = 256) -> List[str]:
 
     flush_buffer()
     return [chunk for chunk in chunks if chunk]
+
+def env_bool(name: str, default: bool = False) -> bool:
+    v = os.getenv(name)
+    if v is None:
+        return default
+    return v.strip().lower() in ("1", "true", "yes", "y", "on")
