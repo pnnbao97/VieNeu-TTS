@@ -15,11 +15,6 @@ name = "pytorch-cpu"
 url = "https://download.pytorch.org/whl/cpu"
 explicit = true
 
-[[tool.uv.index]]
-name = "llama-cpp-python-whl"
-url = "https://abetlen.github.io/llama-cpp-python/whl/cpu"
-explicit = true
-
 [project]
 name = "VieNeu-TTS"
 version = "0.1.0"
@@ -35,7 +30,8 @@ dependencies = [
     "gradio>=5.49.1",
     "onnxruntime>=1.23.2",
     "datasets>=3.2.0",
-    "llama-cpp-python>=0.3.2",
+    "llama-cpp-python>=0.3.16",
+    "perth>=0.2.0",
 ]
 
 [tool.uv.sources]
@@ -46,8 +42,4 @@ torch = [
 torchaudio = [
     { index = "pytorch-cpu", marker = "sys_platform != 'darwin'" },
     { index = "pypi", marker = "sys_platform == 'darwin'" }
-]
-llama-cpp-python = [
-    { index = "llama-cpp-python-whl", marker = "sys_platform == 'win32'" },
-    { index = "pypi", marker = "sys_platform != 'win32'" }
 ]

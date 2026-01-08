@@ -65,6 +65,51 @@ def get_available_devices() -> list[str]:
 
     return devices
 
+def get_model_status_message() -> str:
+    """Reconstruct status message from global state"""
+    global model_loaded, tts, using_lmdeploy, current_backbone, current_codec
+    if not model_loaded or tts is None:
+        return "⏳ Chưa tải model."
+    
+    backbone_config = BACKBONE_CONFIGS.get(current_backbone, {})
+    codec_config = CODEC_CONFIGS.get(current_codec, {})
+    
+    backend_name = "🚀 LMDeploy (Optimized)" if using_lmdeploy else "📦 Standard"
+    
+    # We don't track the exact device strings perfectly in global state, so we estimate
+    device_info = "GPU" if using_lmdeploy else "Auto"
+    codec_device = "CPU" if "ONNX" in (current_codec or "") else ("GPU/MPS" if torch.cuda.is_available() or torch.backends.mps.is_available() else "CPU")
+    
+    preencoded_note = "\n⚠️ Codec này cần sử dụng pre-encoded codes (.pt files)" if codec_config.get('use_preencoded') else ""
+    
+    opt_info = ""
+    if using_lmdeploy and hasattr(tts, 'get_optimization_stats'):
+        stats = tts.get_optimization_stats()
+        opt_info = (
+            f"\n\n🔧 Tối ưu hóa:"
+            f"\n  • Triton: {'✅' if stats['triton_enabled'] else '❌'}"
+            f"\n  • Max Batch Size (Default): {stats.get('max_batch_size', 'N/A')}"
+            f"\n  • Reference Cache: {stats['cached_references']} voices"
+            f"\n  • Prefix Caching: ✅"
+        )
+
+    return (
+        f"✅ Model đã tải thành công!\n\n"
+        f"🔧 Backend: {backend_name}\n"
+        f"🦜 Backbone: {current_backbone}\n"
+        f"🎵 Codec: {current_codec}{preencoded_note}{opt_info}"
+    )
+
+def restore_ui_state():
+    """Update UI components based on persistence"""
+    global model_loaded
+    msg = get_model_status_message()
+    return (
+        msg, 
+        gr.update(interactive=model_loaded), # btn_generate
+        gr.update(interactive=False)         # btn_stop
+    )
+
 def should_use_lmdeploy(backbone_choice: str, device_choice: str) -> bool:
     """Determine if we should use LMDeploy backend."""
     # LMDeploy not supported on macOS
@@ -99,13 +144,14 @@ def cleanup_gpu_memory():
     gc.collect()
 
 def load_model(backbone_choice: str, codec_choice: str, device_choice: str, 
-               enable_triton: bool, max_batch_size: int):
+               force_lmdeploy: bool):
     """Load model with optimizations and max batch size control"""
     global tts, current_backbone, current_codec, model_loaded, using_lmdeploy
     lmdeploy_error_reason = None
     
     yield (
         "⏳ Đang tải model với tối ưu hóa... Lưu ý: Quá trình này sẽ tốn thời gian. Vui lòng kiên nhẫn.",
+        gr.update(interactive=False),
         gr.update(interactive=False),
         gr.update(interactive=False)
     )
@@ -119,7 +165,7 @@ def load_model(backbone_choice: str, codec_choice: str, device_choice: str,
         backbone_config = BACKBONE_CONFIGS[backbone_choice]
         codec_config = CODEC_CONFIGS[codec_choice]
         
-        use_lmdeploy = should_use_lmdeploy(backbone_choice, device_choice)
+        use_lmdeploy = force_lmdeploy and should_use_lmdeploy(backbone_choice, device_choice)
         
         if use_lmdeploy:
             lmdeploy_error_reason = None
@@ -135,8 +181,7 @@ def load_model(backbone_choice: str, codec_choice: str, device_choice: str,
             print(f"📦 Loading optimized model...")
             print(f"   Backbone: {backbone_config['repo']} on {backbone_device}")
             print(f"   Codec: {codec_config['repo']} on {codec_device}")
-            print(f"   Triton: {'Enabled' if enable_triton else 'Disabled'}")
-            print(f"   Max Batch Size: {max_batch_size}")
+            print(f"   Triton: Enabled")
             
             try:
                 tts = FastVieNeuTTS(
@@ -147,8 +192,7 @@ def load_model(backbone_choice: str, codec_choice: str, device_choice: str,
                     memory_util=0.3,
                     tp=1,
                     enable_prefix_caching=True,
-                    enable_triton=enable_triton,
-                    max_batch_size=max_batch_size,
+                    enable_triton=True,
                 )
                 using_lmdeploy = True
                 
@@ -249,7 +293,7 @@ def load_model(backbone_choice: str, codec_choice: str, device_choice: str,
             opt_info = (
                 f"\n\n🔧 Tối ưu hóa:"
                 f"\n  • Triton: {'✅' if stats['triton_enabled'] else '❌'}"
-                f"\n  • Max Batch Size: {max_batch_size}"
+                f"\n  • Max Batch Size (Default): {stats.get('max_batch_size', 'N/A')}"
                 f"\n  • Reference Cache: {stats['cached_references']} voices"
                 f"\n  • Prefix Caching: ✅"
             )
@@ -262,18 +306,15 @@ def load_model(backbone_choice: str, codec_choice: str, device_choice: str,
                  f"💡 Hệ thống đã tự động chuyển về chế độ Standard (chậm hơn)."
              )
 
-        success_msg = (
-            f"✅ Model đã tải thành công!\n\n"
-            f"🔧 Backend: {backend_name}\n"
-            f"🦜 Model Device: {device_info.upper()}\n"
-            f"🎵 Codec Device: {codec_device.upper()}{preencoded_note}\n"
-            f"🌊 Streaming: {streaming_support}{opt_info}{warning_msg}"
-        )
-        
+        success_msg = get_model_status_message()
+        if warning_msg:
+            success_msg += warning_msg
+            
         yield (
             success_msg,
-            gr.update(interactive=True),
-            gr.update(interactive=True)
+            gr.update(interactive=True), # btn_generate
+            gr.update(interactive=True), # btn_load
+            gr.update(interactive=False) # btn_stop
         )
         
     except Exception as e:
@@ -286,13 +327,15 @@ def load_model(backbone_choice: str, codec_choice: str, device_choice: str,
             yield (
                 "❌ Lỗi khi tải model: Không tìm thấy biến môi trường CUDA_PATH. Vui lòng cài đặt NVIDIA GPU Computing Toolkit (https://developer.nvidia.com/cuda/toolkit)",
                 gr.update(interactive=False),
-                gr.update(interactive=True)
+                gr.update(interactive=True),
+                gr.update(interactive=False)
             )
         else: 
             yield (
                 f"❌ Lỗi khi tải model: {str(e)}",
                 gr.update(interactive=False),
-                gr.update(interactive=True)
+                gr.update(interactive=True),
+                gr.update(interactive=False)
             )
 
 
@@ -332,7 +375,7 @@ def load_reference_info(voice_choice: str) -> Tuple[Optional[str], str]:
     return None, ""
 
 def synthesize_speech(text: str, voice_choice: str, custom_audio, custom_text: str, 
-                     mode_tab: str, generation_mode: str, use_batch: bool):
+                     mode_tab: str, generation_mode: str, use_batch: bool, max_batch_size_run: int):
     """Synthesis with optimization support and max batch size control"""
     global tts, current_backbone, current_codec, model_loaded, using_lmdeploy
     
@@ -415,12 +458,11 @@ def synthesize_speech(text: str, voice_choice: str, custom_audio, custom_text: s
             # Use batch processing if enabled and using LMDeploy
             if use_batch and using_lmdeploy and hasattr(tts, 'infer_batch') and total_chunks > 1:
                 # Show how many mini-batches will be processed
-                batch_size = tts.max_batch_size if hasattr(tts, 'max_batch_size') else 8
-                num_batches = (total_chunks + batch_size - 1) // batch_size
+                num_batches = (total_chunks + max_batch_size_run - 1) // max_batch_size_run
                 
-                yield None, f"⚡ Xử lý {num_batches} mini-batch(es) (max {batch_size} đoạn/batch)..."
+                yield None, f"⚡ Xử lý {num_batches} mini-batch(es) (max {max_batch_size_run} đoạn/batch)..."
                 
-                chunk_wavs = tts.infer_batch(text_chunks, ref_codes, ref_text_raw)
+                chunk_wavs = tts.infer_batch(text_chunks, ref_codes, ref_text_raw, max_batch_size=max_batch_size_run)
                 
                 for i, chunk_wav in enumerate(chunk_wavs):
                     if chunk_wav is not None and len(chunk_wav) > 0:
@@ -665,6 +707,52 @@ css = """
     color: #22D3EE;
     text-decoration: underline;
 }
+.warning-banner {
+    background-color: #fffbeb;
+    border: 1px solid #fef3c7;
+    border-radius: 12px;
+    padding: 16px;
+    margin-bottom: 20px;
+}
+.warning-banner-title {
+    color: #92400e;
+    font-weight: 700;
+    font-size: 1.1rem;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 12px;
+}
+.warning-banner-grid {
+    display: flex;
+    gap: 15px;
+    flex-wrap: wrap;
+}
+.warning-banner-item {
+    flex: 1;
+    min-width: 240px;
+    background: #fef3c7;
+    padding: 12px;
+    border-radius: 8px;
+    border: 1px solid #fde68a;
+}
+.warning-banner-item strong {
+    color: #b45309;
+    display: block;
+    margin-bottom: 4px;
+    font-size: 0.95rem;
+}
+.warning-banner-content {
+    color: #78350f;
+    font-size: 0.9rem;
+    line-height: 1.5;
+}
+.warning-banner-content b {
+    color: #451a03;
+    background: rgba(251, 191, 36, 0.2);
+    padding: 1px 4px;
+    border-radius: 4px;
+}
 """
 
 EXAMPLES_LIST = [
@@ -685,9 +773,7 @@ with gr.Blocks(theme=theme, css=css, title="VieNeu-TTS") as demo:
             <strong>Models:</strong>
             <a href="https://huggingface.co/pnnbao-ump/VieNeu-TTS" target="_blank" class="model-card-link">VieNeu-TTS</a>
             <span>•</span>
-            <a href="https://huggingface.co/pnnbao-ump/VieNeu-TTS-q4-gguf" target="_blank" class="model-card-link">Q4-GGUF</a>
-            <span>•</span>
-            <a href="https://huggingface.co/pnnbao-ump/VieNeu-TTS-q8-gguf" target="_blank" class="model-card-link">Q8-GGUF</a>
+            <a href="https://huggingface.co/pnnbao-ump/VieNeu-TTS-0.3B" target="_blank" class="model-card-link">VieNeu-TTS-0.3B</a>
         </div>
         <div class="model-card-item">
             <strong>Repository:</strong>
@@ -704,26 +790,42 @@ with gr.Blocks(theme=theme, css=css, title="VieNeu-TTS") as demo:
         # --- CONFIGURATION ---
         with gr.Group():
             with gr.Row():
-                backbone_select = gr.Dropdown(list(BACKBONE_CONFIGS.keys()), value="VieNeu-TTS (GPU)", label="🦜 Backbone")
-                codec_select = gr.Dropdown(list(CODEC_CONFIGS.keys()), value="NeuCodec (Standard)", label="🎵 Codec")
+                backbone_select = gr.Dropdown(
+                    list(BACKBONE_CONFIGS.keys()), 
+                    value="VieNeu-TTS (GPU)", 
+                    label="🦜 Backbone"
+                )
+                codec_select = gr.Dropdown(list(CODEC_CONFIGS.keys()), value="NeuCodec (Distill)", label="🎵 Codec")
                 device_choice = gr.Radio(get_available_devices(), value="Auto", label="🖥️ Device")
             
             with gr.Row():
-                enable_triton = gr.Checkbox(value=True, label="⚡ Enable Triton Compilation")
-                max_batch_size = gr.Slider(
-                    minimum=1, 
-                    maximum=16, 
-                    value=8, 
-                    step=1, 
-                    label="📊 Max Batch Size",
-                    info="Giảm nếu gặp lỗi OOM. 4-6 cho GPU 8GB, 8-12 cho GPU 16GB+"
+                use_lmdeploy_cb = gr.Checkbox(
+                    value=True, 
+                    label="🚀 Optimize with LMDeploy (Khuyên dùng cho NVIDIA GPU)",
+                    info="Tick nếu bạn dùng GPU để tăng tốc độ tổng hợp đáng kể."
                 )
             
-            gr.Markdown(
-                "⚠️ **Lưu ý:** Nếu máy bạn chỉ có CPU vui lòng chọn phiên bản GGUF (Q4/Q8) để có tốc độ nhanh nhất.\n\n"
-                "💡 **Max Batch Size:** Số lượng đoạn văn bản được xử lý cùng lúc. "
-                "Giá trị cao = nhanh hơn nhưng tốn VRAM hơn. Giảm xuống nếu gặp lỗi \"Out of Memory\"."
-            )
+            gr.HTML("""
+            <div class="warning-banner">
+                <div class="warning-banner-title">
+                    🦜 Gợi ý tối ưu hiệu năng
+                </div>
+                <div class="warning-banner-grid">
+                    <div class="warning-banner-item">
+                        <strong>🐢 Hệ máy CPU</strong>
+                        <div class="warning-banner-content">
+                            Sử dụng <b>VieNeu-TTS-0.3B-q4-gguf</b> để đạt tốc độ xử lý nhanh nhất. Nếu ưu tiên độ chính xác thì dùng <b>VieNeu-TTS-0.3B-q8-gguf</b>.
+                        </div>
+                    </div>
+                    <div class="warning-banner-item">
+                        <strong>🐆 Hệ máy GPU</strong>
+                        <div class="warning-banner-content">
+                            Chọn <b>VieNeu-TTS-0.3B (GPU)</b> để x2 tốc độ (Chất lượng ~95% so với bản gốc).
+                        </div>
+                    </div>
+                </div>
+            </div>
+            """)
 
             btn_load = gr.Button("🔄 Tải Model", variant="primary")
             model_status = gr.Markdown("⏳ Chưa tải model.")
@@ -732,7 +834,7 @@ with gr.Blocks(theme=theme, css=css, title="VieNeu-TTS") as demo:
             # --- INPUT ---
             with gr.Column(scale=3):
                 text_input = gr.Textbox(
-                    label=f"Văn bản (Streaming hỗ trợ tới {MAX_TOTAL_CHARS_STREAMING} ký tự, chia chunk {MAX_CHARS_PER_CHUNK} ký tự)",
+                    label=f"Văn bản",
                     lines=4,
                     value="Hà Nội, trái tim của Việt Nam, là một thành phố ngàn năm văn hiến với bề dày lịch sử và văn hóa độc đáo. Bước chân trên những con phố cổ kính quanh Hồ Hoàn Kiếm, du khách như được du hành ngược thời gian, chiêm ngưỡng kiến trúc Pháp cổ điển hòa quyện với nét kiến trúc truyền thống Việt Nam. Mỗi con phố trong khu phố cổ mang một tên gọi đặc trưng, phản ánh nghề thủ công truyền thống từng thịnh hành nơi đây như phố Hàng Bạc, Hàng Đào, Hàng Mã. Ẩm thực Hà Nội cũng là một điểm nhấn đặc biệt, từ tô phở nóng hổi buổi sáng, bún chả thơm lừng trưa hè, đến chè Thái ngọt ngào chiều thu. Những món ăn dân dã này đã trở thành biểu tượng của văn hóa ẩm thực Việt, được cả thế giới yêu mến. Người Hà Nội nổi tiếng với tính cách hiền hòa, lịch thiệp nhưng cũng rất cầu toàn trong từng chi tiết nhỏ, từ cách pha trà sen cho đến cách chọn hoa sen tây để thưởng trà.",
                 )
@@ -752,16 +854,27 @@ with gr.Blocks(theme=theme, css=css, title="VieNeu-TTS") as demo:
                     value="Standard (Một lần)",
                     label="Chế độ sinh"
                 )
-                use_batch = gr.Checkbox(
-                    value=True, 
-                    label="⚡ Batch Processing",
-                    info="Xử lý nhiều đoạn cùng lúc (chỉ áp dụng khi sử dụng GPU và đã cài đặt LMDeploy)"
-                )
+                with gr.Row():
+                    use_batch = gr.Checkbox(
+                        value=True, 
+                        label="⚡ Batch Processing",
+                        info="Xử lý nhiều đoạn cùng lúc (chỉ áp dụng khi sử dụng GPU và đã cài đặt LMDeploy)"
+                    )
+                    max_batch_size_run = gr.Slider(
+                        minimum=1, 
+                        maximum=16, 
+                        value=4, 
+                        step=1, 
+                        label="📊 Batch Size (Generation)",
+                        info="Số lượng đoạn văn bản xử lý cùng lúc. Giá trị cao = nhanh hơn nhưng tốn VRAM hơn. Giảm xuống nếu gặp lỗi Out of Memory."
+                    )
                 
                 # State to track current mode (replaces unreliable Textbox/Tabs input)
                 current_mode_state = gr.State("preset_mode")
                 
-                btn_generate = gr.Button("🎵 Bắt đầu", variant="primary", size="lg", interactive=False)
+                with gr.Row():
+                    btn_generate = gr.Button("🎵 Bắt đầu", variant="primary", scale=2, interactive=False)
+                    btn_stop = gr.Button("⏹️ Dừng", variant="stop", scale=1, interactive=False)
             
             # --- OUTPUT ---
             with gr.Column(scale=2):
@@ -771,13 +884,26 @@ with gr.Blocks(theme=theme, css=css, title="VieNeu-TTS") as demo:
                     autoplay=True
                 )
                 status_output = gr.Textbox(label="Trạng thái", elem_classes="status-box")
+                gr.Markdown("<div style='text-align: center; color: #64748b; font-size: 0.8rem;'>🔒 Audio được đóng dấu bản quyền ẩn (Watermarker) để bảo mật và định danh AI.</div>")
         
-        # --- EVENT HANDLERS ---
-        def update_info(backbone: str) -> str:
-            return f"Streaming: {'✅' if BACKBONE_CONFIGS[backbone]['supports_streaming'] else '❌'}"
+        # # --- EVENT HANDLERS ---
+        # def update_info(backbone: str) -> str:
+        #     return f"Streaming: {'✅' if BACKBONE_CONFIGS[backbone]['supports_streaming'] else '❌'}"
         
-        backbone_select.change(update_info, backbone_select, model_status)
+        # backbone_select.change(update_info, backbone_select, model_status)
         backbone_select.change(update_voice_dropdown, [backbone_select, voice_select], voice_select)
+        
+        # Handler to show/hide Voice Cloning tab
+        def on_codec_change(codec: str):
+            is_onnx = "onnx" in codec.lower()
+            # If switching to ONNX and we are on custom mode, switch back to preset
+            return gr.update(visible=not is_onnx), gr.update(selected="preset_mode" if is_onnx else None)
+        
+        codec_select.change(
+            on_codec_change, 
+            inputs=[codec_select], 
+            outputs=[tab_custom, tabs]
+        )
         
         # Bind tab events to update state
         tab_preset.select(lambda: "preset_mode", outputs=current_mode_state)
@@ -785,14 +911,29 @@ with gr.Blocks(theme=theme, css=css, title="VieNeu-TTS") as demo:
         
         btn_load.click(
             fn=load_model,
-            inputs=[backbone_select, codec_select, device_choice, enable_triton, max_batch_size],
-            outputs=[model_status, btn_generate, btn_load]
+            inputs=[backbone_select, codec_select, device_choice, use_lmdeploy_cb],
+            outputs=[model_status, btn_generate, btn_load, btn_stop]
         )
         
-        btn_generate.click(
+        generate_event = btn_generate.click(
             fn=synthesize_speech,
-            inputs=[text_input, voice_select, custom_audio, custom_text, current_mode_state, generation_mode, use_batch],
+            inputs=[text_input, voice_select, custom_audio, custom_text, current_mode_state, generation_mode, use_batch, max_batch_size_run],
             outputs=[audio_output, status_output]
+        )
+        
+        # When generation starts, enable stop button
+        btn_generate.click(lambda: gr.update(interactive=True), outputs=btn_stop)
+        # When generation ends/stops, disable stop button
+        generate_event.then(lambda: gr.update(interactive=False), outputs=btn_stop)
+        
+        btn_stop.click(fn=None, cancels=[generate_event])
+        btn_stop.click(lambda: (None, "⏹️ Đã dừng tạo giọng nói."), outputs=[audio_output, status_output])
+        btn_stop.click(lambda: gr.update(interactive=False), outputs=btn_stop)
+
+        # Persistence: Restore UI state on load
+        demo.load(
+            fn=restore_ui_state,
+            outputs=[model_status, btn_generate, btn_stop]
         )
 
 if __name__ == "__main__":

@@ -1,14 +1,21 @@
 # VieNeu-TTS
 
 [![GitHub](https://img.shields.io/badge/GitHub-Repository-blue)](https://github.com/pnnbao97/VieNeu-TTS)
-[![Hugging Face](https://img.shields.io/badge/Hugging%20Face-Model-yellow)](https://huggingface.co/pnnbao-ump/VieNeu-TTS)
+[![Hugging Face](https://img.shields.io/badge/Hugging%20Face-0.5B-yellow)](https://huggingface.co/pnnbao-ump/VieNeu-TTS)
+[![Hugging Face](https://img.shields.io/badge/Hugging%20Face-0.3B-orange)](https://huggingface.co/pnnbao-ump/VieNeu-TTS-0.3B)
+[![Hugging Face](https://img.shields.io/badge/Hugging%20Face-0.3B--GGUF-green)](https://huggingface.co/pnnbao-ump/VieNeu-TTS-0.3B-q8-gguf)
 [![Discord](https://img.shields.io/badge/Discord-Join%20Us-5865F2?logo=discord&logoColor=white)](https://discord.gg/mQWr4cp3)
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/drive/1V1DjG-KdmurCAhvXrxxTLsa9tteDxSVO?usp=sharing) 
 
 <img width="899" height="615" alt="Untitled" src="https://github.com/user-attachments/assets/7eb9b816-6ab7-4049-866f-f85e36cb9c6f" />
 
 **VieNeu-TTS** is an advanced on-device Vietnamese Text-to-Speech (TTS) model with **instant voice cloning**.
 
-Trained on ~1000 hours of high-quality Vietnamese speech, this model represents a significant upgrade from VieNeu-TTS-140h with the following improvements:
+This project features two core architectures trained on the [VieNeu-TTS-1000h](https://huggingface.co/datasets/pnnbao-ump/VieNeu-TTS-1000h) dataset:
+- **VieNeu-TTS (0.5B):** An enhanced model fine-tuned from the NeuTTS Air architecture for maximum stability.
+- **VieNeu-TTS-0.3B:** A specialized model **trained from scratch**, delivering 2x faster inference and ultra-low latency.
+
+These represent a significant upgrade from the previous VieNeu-TTS-140h with the following improvements:
 
 - **Enhanced pronunciation**: More accurate and stable Vietnamese pronunciation
 - **Code-switching support**: Seamless transitions between Vietnamese and English
@@ -16,7 +23,7 @@ Trained on ~1000 hours of high-quality Vietnamese speech, this model represents 
 - **Real-time synthesis**: 24 kHz waveform generation on CPU or GPU
 - **Multiple model formats**: Support for PyTorch, GGUF Q4/Q8 (CPU optimized), and ONNX codec
 
-VieNeu-TTS-1000h delivers production-ready speech synthesis fully offline.
+VieNeu-TTS delivers production-ready speech synthesis fully offline.
 
 **Author:** Phạm Nguyễn Ngọc Bảo
 
@@ -28,26 +35,30 @@ VieNeu-TTS-1000h delivers production-ready speech synthesis fully offline.
 
 ## 🔬 Model Overview
 
-- **Backbone:** Qwen 0.5B LLM (chat template)
+- **Backbone:** 
+  - **VieNeu-TTS (0.5B):** Qwen-0.5B fine-tuned from [NeuTTS Air](https://huggingface.co/neuphonic/neutts-air).
+  - **VieNeu-TTS-0.3B:** Custom 0.3B model **trained from scratch**, optimized for extreme speed (2x faster).
 - **Audio codec:** NeuCodec (torch implementation; ONNX & quantized variants supported)
-- **Context window:** 2 048 tokens shared by prompt text and speech tokens
+- **Context window:** 2,048 tokens shared by prompt text and speech tokens
 - **Output watermark:** Enabled by default
-- **Training data:**
-  - [VieNeu-TTS-1000h](https://huggingface.co/datasets/pnnbao-ump/VieNeu-TTS-1000h) — 443,641 curated Vietnamese samples
+- **Training data:** [VieNeu-TTS-1000h](https://huggingface.co/datasets/pnnbao-ump/VieNeu-TTS-1000h) — 443,641 curated Vietnamese samples (Used for both versions).
 
 ### Model Variants
 
-| Model              | Format  | Device  | Quality    | Speed                   | Streaming |
-| ------------------ | ------- | ------- | ---------- | ----------------------- | --------- |
-| VieNeu-TTS         | PyTorch | GPU/CPU | ⭐⭐⭐⭐⭐ | Very Fast with lmdeploy | ❌        |
-| VieNeu-TTS-q8-gguf | GGUF Q8 | CPU/GPU | ⭐⭐⭐⭐   | Fast                    | ✅        |
-| VieNeu-TTS-q4-gguf | GGUF Q4 | CPU/GPU | ⭐⭐⭐     | Very Fast               | ✅        |
+| Model                   | Format  | Device  | Quality    | Speed                   |
+| ----------------------- | ------- | ------- | ---------- | ----------------------- |
+| VieNeu-TTS              | PyTorch | GPU/CPU | ⭐⭐⭐⭐⭐ | Very Fast with lmdeploy |
+| VieNeu-TTS-0.3B         | PyTorch | GPU/CPU | ⭐⭐⭐⭐   | **Ultra Fast (2x)**     |
+| VieNeu-TTS-q8-gguf      | GGUF Q8 | CPU/GPU | ⭐⭐⭐⭐   | Fast                    |
+| VieNeu-TTS-q4-gguf      | GGUF Q4 | CPU/GPU | ⭐⭐⭐     | Very Fast               |
+| VieNeu-TTS-0.3B-q8-gguf | GGUF Q8 | CPU/GPU | ⭐⭐⭐⭐   | **Ultra Fast (1.5x)**   |
+| VieNeu-TTS-0.3B-q4-gguf | GGUF Q4 | CPU/GPU | ⭐⭐⭐     | **Extreme Speed (2x)**  |
 
 **Recommendations:**
 
 - **GPU users**: Use `VieNeu-TTS` (PyTorch) for best quality
-- **CPU users**: Use `VieNeu-TTS-q4-gguf` for fastest inference or `VieNeu-TTS-q8-gguf` for better quality
-- **Streaming**: Only GGUF models support streaming inference
+- **CPU users**: Use `VieNeu-TTS-0.3B-q4-gguf` for fastest inference or `VieNeu-TTS-0.3B-q8-gguf` for best CPU quality.
+- **Streaming**: Only GGUF models support streaming inference (Requires `llama-cpp-python >= 0.3.16`)
 
 ---
 
@@ -142,8 +153,10 @@ Then access the Web UI at `http://127.0.0.1:7860`.
 **Optional dependencies:**
 
 - **For GGUF models (GPU):**
+  *Requires `llama-cpp-python >= 0.3.16`*
   ```bash
-  CMAKE_ARGS="-DLLAMA_CUBLAS=on" uv pip install llama-cpp-python --force-reinstall --no-cache-dir
+  $env:CMAKE_ARGS="-DGGML_CUDA=on"
+  uv pip install "llama-cpp-python>=0.3.16" --force-reinstall --no-cache-dir
   ```
 
 ---
@@ -218,26 +231,29 @@ VieNeu-TTS/
 ## 📚 References
 
 - [GitHub Repository](https://github.com/pnnbao97/VieNeu-TTS)
-- [Hugging Face Model Card](https://huggingface.co/pnnbao-ump/VieNeu-TTS)
-- [NeuTTS Air base model](https://huggingface.co/neuphonic/neutts-air)
-- [Fine-tuning guide](https://github.com/pnnbao-ump/VieNeuTTS/blob/main/finetune.ipynb)
+- [Hugging Face Model (0.5B)](https://huggingface.co/pnnbao-ump/VieNeu-TTS)
+- [Hugging Face Model (0.3B)](https://huggingface.co/pnnbao-ump/VieNeu-TTS-0.3B)
+- [VieNeuTTS Fine-tuning Guide](https://github.com/pnnbao-ump/VieNeuTTS/blob/main/finetune.ipynb)
 - [VieNeuCodec dataset](https://huggingface.co/datasets/pnnbao-ump/VieNeuCodec-dataset)
 
 ---
 
 ## 📄 License
 
-Apache License 2.0
+- **VieNeu-TTS (0.5B):** Original terms (Apache 2.0).
+- **VieNeu-TTS-0.3B:** Released under **CC BY-NC 4.0** (Non-Commercial). 
+  - This version is currently **experimental**.
+  - **Commercial use is prohibited** without authorization. Please contact the author for commercial licensing.
 
 ---
 
 ## 📑 Citation
 
 ```bibtex
-@misc{vieneutts2025,
+@misc{vieneutts2026,
   title        = {VieNeu-TTS: Vietnamese Text-to-Speech with Instant Voice Cloning},
   author       = {Pham Nguyen Ngoc Bao},
-  year         = {2025},
+  year         = {2026},
   publisher    = {Hugging Face},
   howpublished = {\url{https://huggingface.co/pnnbao-ump/VieNeu-TTS}}
 }
@@ -266,7 +282,7 @@ Contributions are welcome!
 
 ## 🙏 Acknowledgements
 
-This project builds upon [NeuTTS Air](https://huggingface.co/neuphonic/neutts-air) by Neuphonic. Huge thanks to the team for open-sourcing such a powerful base model.
+This project builds upon [NeuTTS Air](https://huggingface.co/neuphonic/neutts-air) for the original 0.5B model. The 0.3B version is a custom architecture trained from scratch using the [VieNeu-TTS-1000h](https://huggingface.co/datasets/pnnbao-ump/VieNeu-TTS-1000h) dataset.
 
 ---
 

@@ -5,9 +5,8 @@ from typing import List
 def split_text_into_chunks(text: str, max_chars: int = 256) -> List[str]:
     """
     Split raw text into chunks no longer than max_chars.
-    Preference is given to sentence boundaries; otherwise falls back to word-based splitting.
     """
-    sentences = re.split(r"(?<=[\.\!\?\…])\s+", text.strip())
+    sentences = re.split(r"(?<=[\.\!\?\…\n])\s+|(?<=\n)", text.strip())
     chunks: List[str] = []
     buffer = ""
 

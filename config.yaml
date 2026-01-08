@@ -7,22 +7,38 @@ backbone_configs:
     repo: pnnbao-ump/VieNeu-TTS
     supports_streaming: false
     description: Chất lượng cao nhất, yêu cầu GPU
+  "VieNeu-TTS-0.3B (GPU)":
+    repo: pnnbao-ump/VieNeu-TTS-0.3B
+    supports_streaming: false
+    description: Phiên bản nhẹ cho GPU, tốc độ nhanh x2 so với phiên bản gốc 
   "VieNeu-TTS-q8-gguf":
     repo: pnnbao-ump/VieNeu-TTS-q8-gguf
     supports_streaming: true
-    description: Cân bằng giữa chất lượng và tốc độ
+    description: Phiên bản GGUF có chất lượng cao nhất
   "VieNeu-TTS-q4-gguf":
     repo: pnnbao-ump/VieNeu-TTS-q4-gguf
     supports_streaming: true
-    description: Nhẹ nhất, phù hợp CPU
+    description: Cân bằng giữa chất lượng và tốc độ
+  "VieNeu-TTS-0.3B-q4-gguf":
+    repo: pnnbao-ump/VieNeu-TTS-0.3B-q4-gguf
+    supports_streaming: true
+    description: Phiên bản cực nhẹ, chạy mượt trên CPU
+  "VieNeu-TTS-0.3B-q8-gguf":
+    repo: pnnbao-ump/VieNeu-TTS-0.3B-q8-gguf
+    supports_streaming: true
+    description: Phiên bản 0.3B nén Q8, chất lượng cao và tốc độ nhanh trên CPU
 
 codec_configs:
   "NeuCodec (Standard)":
     repo: neuphonic/neucodec
     description: Codec chuẩn, tốc độ trung bình
     use_preencoded: false
+  "NeuCodec (Distill)":
+    repo: neuphonic/distill-neucodec
+    description: Codec tối ưu, tốc độ cao
+    use_preencoded: false
   "NeuCodec ONNX (Fast CPU)":
-    repo: neuphonic/neucodec-onnx-decoder
+    repo: neuphonic/neucodec-onnx-decoder-int8
     description: Tối ưu cho CPU, cần pre-encoded codes
     use_preencoded: true
 
