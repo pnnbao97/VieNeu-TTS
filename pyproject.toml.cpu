@@ -3,6 +3,7 @@ index-strategy = "unsafe-best-match"
 required-environments = [
     "sys_platform == 'win32' and platform_machine == 'AMD64'",
     "sys_platform == 'linux' and platform_machine == 'x86_64'",
+    "sys_platform == 'linux' and platform_machine == 'aarch64'",
     "sys_platform == 'darwin' and platform_machine == 'arm64'",
 ]
 
@@ -36,12 +37,16 @@ dependencies = [
 
 [tool.uv.sources]
 torch = [
-    { index = "pytorch-cpu", marker = "sys_platform != 'darwin'" },
-    { index = "pypi", marker = "sys_platform == 'darwin'" }
+    { index = "pytorch-cpu", marker = "sys_platform == 'linux' and platform_machine == 'x86_64'" },
+    { index = "pytorch-cpu", marker = "sys_platform == 'win32'" },
+    { index = "pypi", marker = "sys_platform == 'darwin'" },
+    { index = "pypi", marker = "sys_platform == 'linux' and platform_machine == 'aarch64'" },
 ]
 torchaudio = [
-    { index = "pytorch-cpu", marker = "sys_platform != 'darwin'" },
-    { index = "pypi", marker = "sys_platform == 'darwin'" }
+    { index = "pytorch-cpu", marker = "sys_platform == 'linux' and platform_machine == 'x86_64'" },
+    { index = "pytorch-cpu", marker = "sys_platform == 'win32'" },
+    { index = "pypi", marker = "sys_platform == 'darwin'" },
+    { index = "pypi", marker = "sys_platform == 'linux' and platform_machine == 'aarch64'" },
 ]
 
 llama-cpp-python = [

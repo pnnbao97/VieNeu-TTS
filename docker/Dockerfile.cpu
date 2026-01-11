@@ -1,10 +1,9 @@
 FROM python:3.12-slim AS base
 
-# Thiết lập biến môi trường
+# Thiết lập biến môi trường cơ bản
 ENV DEBIAN_FRONTEND=noninteractive \
     PYTHONUNBUFFERED=1 \
     HF_HOME=/root/.cache/huggingface \
-    PHONEMIZER_ESPEAK_LIBRARY=/usr/lib/x86_64-linux-gnu/libespeak-ng.so.1 \
     UV_PROJECT_ENVIRONMENT="/opt/venv" \
     PATH="/opt/venv/bin:$PATH"
 
@@ -16,7 +15,13 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
     wget \
     build-essential \
+    cmake \
     && rm -rf /var/lib/apt/lists/*
+
+# Tìm và thiết lập đường dẫn libespeak-ng.so.1 tự động
+RUN ESPEAK_LIB=$(find /usr/lib -name "libespeak-ng.so.1" 2>/dev/null | head -n1) && \
+    echo "export PHONEMIZER_ESPEAK_LIBRARY=$ESPEAK_LIB" >> /etc/profile.d/espeak.sh && \
+    chmod +x /etc/profile.d/espeak.sh
 
 # Cài đặt uv
 RUN pip install --no-cache-dir uv
@@ -29,9 +34,22 @@ FROM base AS dev
 # Trong môi trường dev, chúng ta sẽ mount code từ host
 # Chỉ copy định nghĩa dependencies để cài đặt
 COPY pyproject.toml.cpu ./pyproject.toml
-COPY uv.lock.cpu ./uv.lock
-RUN uv sync
-# Command mặc định cho dev (có thể override)
+
+# Xoá lock file cũ nếu có và sync dependencies
+RUN rm -f uv.lock && uv sync
+
+# Tạo entrypoint script để set env var động và copy pyproject.toml.cpu
+RUN echo '#!/bin/bash\n\
+ESPEAK_LIB=$(find /usr/lib -name "libespeak-ng.so.1" 2>/dev/null | head -n1)\n\
+export PHONEMIZER_ESPEAK_LIBRARY="$ESPEAK_LIB"\n\
+# Overwrite GPU pyproject.toml with CPU version if mounted\n\
+if [ -f /workspace/pyproject.toml.cpu ]; then\n\
+  cp /workspace/pyproject.toml.cpu /workspace/pyproject.toml\n\
+  rm -f /workspace/uv.lock\n\
+fi\n\
+exec "$@"' > /entrypoint.sh && chmod +x /entrypoint.sh
+
+ENTRYPOINT ["/entrypoint.sh"]
 CMD ["python", "gradio_app.py"]
 
 # --- Stage: Production ---
@@ -39,15 +57,21 @@ FROM base AS prod
 # Copy toàn bộ source code
 COPY . .
 # Copy CPU-specific config
-RUN rm -f pyproject.toml
+RUN rm -f pyproject.toml uv.lock
 COPY pyproject.toml.cpu pyproject.toml
-RUN rm -f uv.lock
-COPY uv.lock.cpu uv.lock
+
 # Cài đặt dependencies (không bao gồm dev deps)
 RUN uv sync --no-dev
+
+# Tạo entrypoint script để set env var động
+RUN echo '#!/bin/bash\n\
+ESPEAK_LIB=$(find /usr/lib -name "libespeak-ng.so.1" 2>/dev/null | head -n1)\n\
+export PHONEMIZER_ESPEAK_LIBRARY="$ESPEAK_LIB"\n\
+exec "$@"' > /entrypoint.sh && chmod +x /entrypoint.sh
+
+ENTRYPOINT ["/entrypoint.sh"]
 
 # Expose port
 EXPOSE 7860
 # Command mặc định cho prod
 CMD ["uv", "run", "gradio_app.py", "--server-name", "0.0.0.0", "--server-port", "7860"]
-

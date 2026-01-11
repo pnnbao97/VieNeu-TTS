@@ -53,9 +53,20 @@ def _setup_windows_espeak():
 
 def _setup_linux_espeak():
     """Setup eSpeak for Linux."""
+    # Check env var first (set by Docker entrypoint)
+    espeak_lib = os.environ.get('PHONEMIZER_ESPEAK_LIBRARY')
+    if espeak_lib and os.path.exists(espeak_lib):
+        EspeakWrapper.set_library(espeak_lib)
+        return
+
     search_patterns = [
+        # x86_64 paths
         "/usr/lib/x86_64-linux-gnu/libespeak-ng.so*",
         "/usr/lib/x86_64-linux-gnu/libespeak.so*",
+        # ARM64/aarch64 paths
+        "/usr/lib/aarch64-linux-gnu/libespeak-ng.so*",
+        "/usr/lib/aarch64-linux-gnu/libespeak.so*",
+        # Generic paths
         "/usr/lib/libespeak-ng.so*",
         "/usr/lib64/libespeak-ng.so*",
         "/usr/local/lib/libespeak-ng.so*",
