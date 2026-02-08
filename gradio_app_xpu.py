@@ -333,6 +333,10 @@ def synthesize_speech(text: str, voice_choice: str, custom_audio, custom_text: s
     text_chunks = split_text_into_chunks(raw_text, max_chars=max_chars_chunk)
     total_chunks = len(text_chunks)
     
+    if not text_chunks:
+        yield None, "❌ Không có đoạn văn bản nào để tổng hợp."
+        return
+    
     # === STANDARD MODE ===
     if generation_mode == "Standard (Một lần)":
         # Note: use_batch and max_batch_size_run are available here but currently ignored/decoy
@@ -342,6 +346,48 @@ def synthesize_speech(text: str, voice_choice: str, custom_audio, custom_text: s
         sr = 24000
         start_time = time.time()
         
+        if use_batch and total_chunks > 1:
+            try:
+                for i in range(0, len(text_chunks), max_batch_size_run):
+                    yield None, print(f" đang xử lý batch {i//max_batch_size_run + 1} ...")
+                    batch_chunks = text_chunks[i : i + max_batch_size_run]
+                    
+                    # Gọi hàm infer_batch đã viết ở trên
+                    batch_results = tts.infer_batch(
+                        texts = batch_chunks,  
+                        ref_codes=ref_codes, 
+                        ref_text=ref_text_raw,
+                        temperature=temperature
+                    )
+                    
+                    if batch_results is not None and len(batch_results) > 0:
+                        all_wavs.extend(batch_results)
+
+                if not all_wavs:
+                    yield None, "❌ Không sinh được audio nào."
+                    return
+
+                yield None, "💾 Đang ghép file và lưu..."
+                
+                final_wav = join_audio_chunks(all_wavs, sr=sr, silence_p=0.15)
+            
+                with tempfile.NamedTemporaryFile(delete=False, suffix=".wav") as tmp:
+                    sf.write(tmp.name, final_wav, sr)
+                    output_path = tmp.name
+                
+                process_time = time.time() - start_time
+                speed_info = f", Tốc độ: {len(final_wav)/sr/process_time:.2f}x realtime" if process_time > 0 else ""
+            
+                yield output_path, f"✅ Hoàn tất! (Thời gian: {process_time:.2f}s{speed_info}) (Backend: Intel XPU)"
+                cleanup_gpu_memory()
+                return
+            
+            except Exception as e:
+                import traceback
+                traceback.print_exc()
+                cleanup_gpu_memory()
+                yield None, f"❌ Lỗi Standard Mode khi infer batch: {str(e)}"
+                return
         try:
             # Sequential processing (Native XPU backend)
             for i, chunk in enumerate(text_chunks):
@@ -728,15 +774,15 @@ with gr.Blocks(theme=theme, css=css, title="VieNeu-TTS (XPU)", head=head_html) a
                     use_batch = gr.Checkbox(
                         value=True, 
                         label="⚡ Batch Processing",
-                        info="Xử lý nhiều đoạn cùng lúc (Hiện tại là Decoy trên XPU - chưa hoạt động)"
+                        info="Xử lý nhiều đoạn cùng lúc. Nên luôn chọn bật để tăng tốc độ."
                     )
                     max_batch_size_run = gr.Slider(
                         minimum=1, 
-                        maximum=16, 
-                        value=4, 
+                        maximum=256, 
+                        value=128, 
                         step=1, 
                         label="📊 Batch Size (Generation)",
-                        info="Số lượng đoạn văn bản xử lý cùng lúc (Decoy)."
+                        info="Số lượng đoạn văn bản xử lý cùng lúc. Càng lớn thì xử lý càng nhanh. Thông thường 128 chunks với 64 chars hết 7gb vram."
                     )
                 
                 with gr.Accordion("⚙️ Cài đặt nâng cao (Generation)", open=False):
@@ -747,9 +793,9 @@ with gr.Blocks(theme=theme, css=css, title="VieNeu-TTS (XPU)", head=head_html) a
                             info="Độ sáng tạo. Cao = đa dạng cảm xúc hơn nhưng dễ lỗi. Thấp = ổn định hơn."
                         )
                         max_chars_chunk_slider = gr.Slider(
-                            minimum=128, maximum=512, value=256, step=32,
+                            minimum=64, maximum=512, value=128, step=16,
                             label="📝 Max Chars per Chunk",
-                            info="Độ dài tối đa mỗi đoạn xử lý."
+                            info="Độ dài tối đa mỗi đoạn xử lý. Càng nhỏ thì xử lý càng nhanh nếu tăng số Batch Size lên."
                         )
                 
                 current_mode_state = gr.State("preset_mode")

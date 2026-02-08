@@ -50,6 +50,7 @@ VieNeu-TTS delivers production-ready speech synthesis fully offline.
 
 ## 🦜 1. Installation & Web UI <a name="installation"></a>
 > **Intel Arc GPU installation (Optional):** Using PyTorch 2.11 with XPU support. Read the Intel Arc GPU section below. Tested on Arc B580 and A770 on window.
+> Recommend setting: Intel arc have high memory bandwidth so keep the batch size as high as possible and minimize the number of character per chunk.
 
 > ⚡ **Quick Start**  
 > ℹ️ This is the fastest way to get started.  

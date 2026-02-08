@@ -45,6 +45,11 @@ class XPUVieNeuTTS(VieNeuTTS):
             raise RuntimeError("XPU device requested but torch.xpu.is_available() returned False")
         
         self.tokenizer = AutoTokenizer.from_pretrained(backbone_repo, token=hf_token)
+        self.tokenizer.padding_side = "left"
+        
+        if self.tokenizer.pad_token is None:
+            self.tokenizer.pad_token = self.tokenizer.eos_token
+            
         # Load in bfloat16 for XPU optimization
         self.backbone = AutoModelForCausalLM.from_pretrained(
             backbone_repo, 
@@ -128,3 +133,67 @@ class XPUVieNeuTTS(VieNeuTTS):
                 torch.xpu.empty_cache()
         except:
             pass
+    
+    def infer_batch(
+            self, 
+            texts: list[str], 
+            voice: dict = None, 
+            ref_codes: torch.Tensor = None, 
+            ref_text: str = None,
+            temperature: float = 1.0, 
+            top_k: int = 50
+            ) -> list[np.ndarray]:
+        """
+        Thực hiện inference theo batch trên XPU sử dụng thuần PyTorch.
+        """
+        if voice is not None:
+            ref_codes = voice.get('codes', ref_codes)
+            ref_text = voice.get('text', ref_text)
+        
+        if ref_codes is None or ref_text is None:
+            raise ValueError("Phải cung cấp voice hoặc ref_codes và ref_text.")
+
+        # Prepare prompt for each chunk in batch
+        batch_prompt_ids = []
+        for text in texts:
+            prompt_ids = self._apply_chat_template(ref_codes, ref_text, text)
+            batch_prompt_ids.append(torch.tensor(prompt_ids))
+            
+        inputs = self.tokenizer.pad(
+            {"input_ids": batch_prompt_ids}, 
+            padding=True, 
+            return_tensors="pt"
+        ).to(device="xpu")
+
+        speech_end_id = self.tokenizer.convert_tokens_to_ids("<|SPEECH_GENERATION_END|>")
+        
+        with torch.no_grad():
+            output_tokens = self.backbone.generate(
+                **inputs,
+                max_length=self.max_context,
+                eos_token_id=speech_end_id,
+                do_sample=True,
+                temperature=temperature,
+                top_k=top_k,
+                use_cache=True,
+                min_new_tokens=50,
+            )
+
+        # Batch Decoding
+        results = []
+        input_length = inputs["input_ids"].shape[-1]
+        
+        for i in range(len(texts)):
+            generated_ids = output_tokens[i, input_length:]
+            output_str = self.tokenizer.decode(generated_ids, add_special_tokens=False)
+            wav = self._decode(output_str)
+            
+            if self.watermarker:
+                wav = self.watermarker.apply_watermark(wav, sample_rate=self.sample_rate)
+                
+            results.append(wav)
+
+        torch.xpu.synchronize()
+        torch.xpu.empty_cache()
+        
+        return results
