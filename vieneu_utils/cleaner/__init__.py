@@ -50,6 +50,17 @@ def clean_vietnamese_text(text):
     # Finally expand standalone letters to catch initials like "M."
     text = expand_standalone_letters(text)
 
+    # Collapse redundant punctuation and whitespace
+    # 1. Collapse multiple spaces
+    text = re.sub(r'\s+', ' ', text)
+    # 2. Collapse consecutive commas and handle comma-punctuation pairs
+    text = re.sub(r',\s*,', ',', text)
+    text = re.sub(r',\s*([.!?;])', r'\1', text)
+    # 3. Handle redundant spaces before punctuation
+    text = re.sub(r'\s+([,.!?;:])', r'\1', text)
+    # 4. Remove leading/trailing commas if they end up at the start/end of sentence parts
+    text = text.strip().strip(',')
+
     for mask, original in mask_map.items():
         text = text.replace(mask, original)
         text = text.replace(mask.lower(), original)

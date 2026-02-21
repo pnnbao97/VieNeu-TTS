@@ -184,8 +184,12 @@ test_groups = {
         ("A + B",              "a cộng bê"),
         ("A = B",              "a bằng bê"),
         ("#1",                 "thăng một"),
-        ("(text in brackets)", ", text in brackets,"),
-        ("[text in brackets]", ", text in brackets,"),
+        ("(text in brackets)", "text in brackets"),
+        ("[text in brackets]", "text in brackets"),
+        ("(giờ Mỹ)", "giờ mỹ"),
+        ("hiệu lực từ 0h01 (giờ Mỹ), trong vòng", "hiệu lực từ không giờ không một phút, giờ mỹ, trong vòng"),
+        ("hiệu lực từ 0h01 (giờ Mỹ) trong vòng", "hiệu lực từ không giờ không một phút, giờ mỹ, trong vòng"),
+        ("kết thúc (0h01).", "kết thúc, không giờ không một phút."),
     ],
 
     # ─── 15. VIẾT TẮT ĐƠN GIẢN ──────────────────────────────────────────────
