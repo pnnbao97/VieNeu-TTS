@@ -1,2 +1,0 @@
-Original: Theo thông tin từ Nhà Trắng, mức thuế mới có hiệu lực từ 0h01 ngày 24/2 (giờ Mỹ), trong vòng 150 ngày.
-Normalized: theo thông tin từ nhà trắng, mức thuế mới có hiệu lực từ không giờ không một phút ngày hai mươi bốn tháng hai, giờ mỹ, trong vòng một trăm năm mươi ngày.
