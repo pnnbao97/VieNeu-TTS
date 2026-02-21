@@ -58,7 +58,7 @@ def main():
     # PART 4: STANDARD SPEECH SYNTHESIS (DEFAULT)
     # ---------------------------------------------------------
     print("\n--- PART 4: Standard Synthesis (Default) ---")
-    text = "Thực tế vụ này cho thấy sự phân hóa rõ rệt: những vườn thu hoạch sớm trước tháng 9 gặp nhiều khó khăn, trong khi các vườn thu hoạch từ tháng 9 trở đi lại trúng mùa, được giá nên lãi lớn. Theo ước tính của người trồng sầu riêng tại Tây Nguyên, sau khi trừ chi phí, lợi nhuận mỗi ha đạt khoảng 400-600 triệu đồng."
+    text = "Xin chào, tôi là VieNeu. Tôi có thể giúp bạn đọc sách, làm chatbot thời gian thực, hoặc thậm chí clone giọng nói của bạn."
     
     print("🎧 Synthesizing speech...")
     # By default, it uses the model's 'default_voice'
