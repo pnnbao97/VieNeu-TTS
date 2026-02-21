@@ -5,6 +5,7 @@ import numpy as np
 import torch
 from neucodec import NeuCodec, DistillNeuCodec
 from vieneu_utils.phonemize_text import phonemize_with_dict
+from vieneu_utils.normalize_text import VietnameseTTSNormalizer
 from vieneu_utils.core_utils import split_text_into_chunks, join_audio_chunks
 from collections import defaultdict
 import re
@@ -139,6 +140,9 @@ class VieNeuTTS:
             print("   🔒 Audio watermarking initialized (Perth)")
         except (ImportError, AttributeError):
             self.watermarker = None
+
+        # Text normalizer
+        self.normalizer = VietnameseTTSNormalizer()
     
     def __enter__(self):
         return self
@@ -465,7 +469,7 @@ class VieNeuTTS:
             ref_codes = self.codec.encode_code(audio_or_path=wav_tensor).squeeze(0).squeeze(0)
         return ref_codes
 
-    def infer(self, text: str, ref_audio: str | Path = None, ref_codes: np.ndarray | torch.Tensor = None, ref_text: str = None, max_chars: int = 256, silence_p: float = 0.15, crossfade_p: float = 0.0, voice: dict = None, temperature: float = 1.0, top_k: int = 50) -> np.ndarray:
+    def infer(self, text: str, ref_audio: str | Path = None, ref_codes: np.ndarray | torch.Tensor = None, ref_text: str = None, max_chars: int = 256, silence_p: float = 0.15, crossfade_p: float = 0.0, voice: dict = None, temperature: float = 1.0, top_k: int = 50, skip_normalize: bool = False) -> np.ndarray:
         """
         Perform inference to generate speech from text using the TTS model and reference audio.
         Automatically splits long text into chunks.
@@ -481,6 +485,7 @@ class VieNeuTTS:
             voice (dict): Optional dictionary containing 'codes' and 'text' (overrides ref_codes/ref_text).
             temperature (float): Sampling temperature (default 1.0).
             top_k (int): Top-k sampling (default 50).
+            skip_normalize (bool): If True, skip normalization (text is already normalized).
         Returns:
             np.ndarray: Generated speech waveform.
         """
@@ -504,6 +509,10 @@ class VieNeuTTS:
             
         if ref_codes is None or ref_text is None:
              raise ValueError("Must provide either 'voice' dict or both 'ref_codes' and 'ref_text'.")
+
+        # Normalize text BEFORE chunking (skip if caller already normalized)
+        if not skip_normalize:
+            text = self.normalizer.normalize(text)
 
         # Split text into chunks for better processing of long text
         chunks = split_text_into_chunks(text, max_chars=max_chars)
@@ -533,7 +542,7 @@ class VieNeuTTS:
 
         return final_wav
 
-    def infer_stream(self, text: str, ref_codes: np.ndarray | torch.Tensor = None, ref_text: str = None, max_chars: int = 256, voice: dict = None, temperature: float = 1.0, top_k: int = 50) -> Generator[np.ndarray, None, None]:
+    def infer_stream(self, text: str, ref_codes: np.ndarray | torch.Tensor = None, ref_text: str = None, max_chars: int = 256, voice: dict = None, temperature: float = 1.0, top_k: int = 50, skip_normalize: bool = False) -> Generator[np.ndarray, None, None]:
         """
         Perform streaming inference to generate speech from text using the TTS model and reference audio.
         Automatically splits long text into chunks and streams them.
@@ -546,6 +555,7 @@ class VieNeuTTS:
             voice (dict): Optional dictionary containing 'codes' and 'text'.
             temperature (float): Sampling temperature.
             top_k (int): Top-k sampling.
+            skip_normalize (bool): If True, skip normalization (text is already normalized).
         Yields:
             np.ndarray: Generated speech waveform.
         """
@@ -564,6 +574,10 @@ class VieNeuTTS:
             
         if ref_codes is None or ref_text is None:
              raise ValueError("Must provide either 'voice' dict or both 'ref_codes' and 'ref_text'.")
+
+        # Normalize text BEFORE chunking (skip if caller already normalized)
+        if not skip_normalize:
+            text = self.normalizer.normalize(text)
 
         chunks = split_text_into_chunks(text, max_chars=max_chars)
         
@@ -604,7 +618,8 @@ class VieNeuTTS:
         return recon[0, 0, :]
     
     def _apply_chat_template(self, ref_codes: list[int], ref_text: str, input_text: str) -> list[int]:
-        input_text = phonemize_with_dict(ref_text) + " " + phonemize_with_dict(input_text)
+        # input_text is already normalized; ref_text may still need normalization
+        input_text = phonemize_with_dict(ref_text) + " " + phonemize_with_dict(input_text, skip_normalize=True)
 
         speech_replace = self.tokenizer.convert_tokens_to_ids("<|SPEECH_REPLACE|>")
         speech_gen_start = self.tokenizer.convert_tokens_to_ids("<|SPEECH_GENERATION_START|>")
@@ -654,7 +669,7 @@ class VieNeuTTS:
 
     def _infer_ggml(self, ref_codes: list[int], ref_text: str, input_text: str, temperature: float = 1.0, top_k: int = 50) -> str:
         ref_text = phonemize_with_dict(ref_text)
-        input_text = phonemize_with_dict(input_text)
+        input_text = phonemize_with_dict(input_text, skip_normalize=True)
 
         codes_str = "".join([f"<|speech_{idx}|>" for idx in ref_codes])
         prompt = (
@@ -673,7 +688,7 @@ class VieNeuTTS:
 
     def _infer_stream_ggml(self, ref_codes: torch.Tensor, ref_text: str, input_text: str, temperature: float = 1.0, top_k: int = 50) -> Generator[np.ndarray, None, None]:
         ref_text = phonemize_with_dict(ref_text)
-        input_text = phonemize_with_dict(input_text)
+        input_text = phonemize_with_dict(input_text, skip_normalize=True)
 
         codes_str = "".join([f"<|speech_{idx}|>" for idx in ref_codes])
         prompt = (
@@ -850,6 +865,9 @@ class FastVieNeuTTS:
             print("   🔒 Audio watermarking initialized (Perth)")
         except (ImportError, AttributeError):
             self.watermarker = None
+
+        # Text normalizer
+        self.normalizer = VietnameseTTSNormalizer()
 
         self._warmup_model()
         
@@ -1132,7 +1150,7 @@ class FastVieNeuTTS:
     def _format_prompt(self, ref_codes: list[int], ref_text: str, input_text: str) -> str:
         """Format prompt for LMDeploy"""
         ref_text_phones = phonemize_with_dict(ref_text)
-        input_text_phones = phonemize_with_dict(input_text)
+        input_text_phones = phonemize_with_dict(input_text, skip_normalize=True)
         
         codes_str = "".join([f"<|speech_{idx}|>" for idx in ref_codes])
         
@@ -1143,7 +1161,7 @@ class FastVieNeuTTS:
         
         return prompt
     
-    def infer(self, text: str, ref_audio: str | Path = None, ref_codes: np.ndarray | torch.Tensor = None, ref_text: str = None, max_chars: int = 256, silence_p: float = 0.15, crossfade_p: float = 0.0, voice: dict = None, temperature: float = 1.0, top_k: int = 50) -> np.ndarray:
+    def infer(self, text: str, ref_audio: str | Path = None, ref_codes: np.ndarray | torch.Tensor = None, ref_text: str = None, max_chars: int = 256, silence_p: float = 0.15, crossfade_p: float = 0.0, voice: dict = None, temperature: float = 1.0, top_k: int = 50, skip_normalize: bool = False) -> np.ndarray:
         """
         Single inference (automatically splits long text and uses batching for speed).
         
@@ -1156,6 +1174,7 @@ class FastVieNeuTTS:
             voice: Optional dict with 'codes' and 'text'.
             temperature: Sampling temperature.
             top_k: Top-k sampling.
+            skip_normalize: If True, skip normalization (text is already normalized).
             
         Returns:
             Generated speech waveform as numpy array
@@ -1180,6 +1199,10 @@ class FastVieNeuTTS:
         if ref_codes is None or ref_text is None:
              raise ValueError("Must provide either 'voice' dict or both 'ref_codes' and 'ref_text'.")
         
+        # Normalize text BEFORE chunking (skip if caller already normalized)
+        if not skip_normalize:
+            text = self.normalizer.normalize(text)
+
         # Update generation config if needed
         self.gen_config.temperature = temperature
         self.gen_config.top_k = top_k
@@ -1269,7 +1292,7 @@ class FastVieNeuTTS:
         
         return all_wavs
     
-    def infer_stream(self, text: str, ref_codes: np.ndarray | torch.Tensor = None, ref_text: str = None, max_chars: int = 256, voice: dict = None, temperature: float = 1.0, top_k: int = 50) -> Generator[np.ndarray, None, None]:
+    def infer_stream(self, text: str, ref_codes: np.ndarray | torch.Tensor = None, ref_text: str = None, max_chars: int = 256, voice: dict = None, temperature: float = 1.0, top_k: int = 50, skip_normalize: bool = False) -> Generator[np.ndarray, None, None]:
         """
         Streaming inference with low latency (supports long text by splitting into chunks).
         
@@ -1281,6 +1304,7 @@ class FastVieNeuTTS:
             voice: Optional dict with 'codes' and 'text'.
             temperature: Sampling temperature.
             top_k: Top-k sampling.
+            skip_normalize: If True, skip normalization (text is already normalized).
             
         Yields:
             Audio chunks as numpy arrays
@@ -1300,6 +1324,10 @@ class FastVieNeuTTS:
         if ref_codes is None or ref_text is None:
              raise ValueError("Must provide either 'voice' dict or both 'ref_codes' and 'ref_text'.")
         
+        # Normalize text BEFORE chunking (skip if caller already normalized)
+        if not skip_normalize:
+            text = self.normalizer.normalize(text)
+
         # Update generation config
         self.gen_config.temperature = temperature
         self.gen_config.top_k = top_k
@@ -1472,7 +1500,7 @@ class RemoteVieNeuTTS(VieNeuTTS):
     def _format_prompt(self, ref_codes: list[int], ref_text: str, input_text: str) -> str:
         """Format prompt for remote LMDeploy server"""
         ref_text_phones = phonemize_with_dict(ref_text)
-        input_text_phones = phonemize_with_dict(input_text)
+        input_text_phones = phonemize_with_dict(input_text, skip_normalize=True)
         
         codes_str = "".join([f"<|speech_{idx}|>" for idx in ref_codes])
         
@@ -1482,7 +1510,7 @@ class RemoteVieNeuTTS(VieNeuTTS):
         )
         return prompt
 
-    def infer(self, text: str, ref_audio: str | Path = None, ref_codes: np.ndarray | torch.Tensor = None, ref_text: str = None, max_chars: int = 256, silence_p: float = 0.15, crossfade_p: float = 0.0, voice: dict = None, temperature: float = 1.0, top_k: int = 50) -> np.ndarray:
+    def infer(self, text: str, ref_audio: str | Path = None, ref_codes: np.ndarray | torch.Tensor = None, ref_text: str = None, max_chars: int = 256, silence_p: float = 0.15, crossfade_p: float = 0.0, voice: dict = None, temperature: float = 1.0, top_k: int = 50, skip_normalize: bool = False) -> np.ndarray:
         """
         Remote inference (automatically splits long text).
         
@@ -1497,6 +1525,7 @@ class RemoteVieNeuTTS(VieNeuTTS):
             voice: Optional dict with 'codes' and 'text'.
             temperature: Sampling temperature.
             top_k: Top-k sampling.
+            skip_normalize: If True, skip normalization (text is already normalized).
             
         Returns:
             Generated speech waveform as numpy array
@@ -1520,6 +1549,10 @@ class RemoteVieNeuTTS(VieNeuTTS):
             
         if ref_codes is None or ref_text is None:
              raise ValueError("Must provide either 'voice' dict or both 'ref_codes' and 'ref_text'.")
+
+        # Normalize text BEFORE chunking (skip if caller already normalized)
+        if not skip_normalize:
+            text = self.normalizer.normalize(text)
 
         chunks = split_text_into_chunks(text, max_chars=max_chars)
         
@@ -1570,7 +1603,7 @@ class RemoteVieNeuTTS(VieNeuTTS):
             
         return final_wav    
 
-    def infer_stream(self, text: str, ref_audio: str | Path = None, ref_codes: np.ndarray | torch.Tensor = None, ref_text: str = None, max_chars: int = 256, voice: dict = None, temperature: float = 1.0, top_k: int = 50) -> Generator[np.ndarray, None, None]:
+    def infer_stream(self, text: str, ref_audio: str | Path = None, ref_codes: np.ndarray | torch.Tensor = None, ref_text: str = None, max_chars: int = 256, voice: dict = None, temperature: float = 1.0, top_k: int = 50, skip_normalize: bool = False) -> Generator[np.ndarray, None, None]:
         """
         Stream output audio (generator).
         """
@@ -1591,6 +1624,10 @@ class RemoteVieNeuTTS(VieNeuTTS):
 
         if ref_codes is None or ref_text is None:
              raise ValueError("Must provide either 'voice' dict or both 'ref_codes' and 'ref_text'.")
+
+        # Normalize text BEFORE chunking (skip if caller already normalized)
+        if not skip_normalize:
+            text = self.normalizer.normalize(text)
 
         chunks = split_text_into_chunks(text, max_chars=max_chars)
         for chunk in chunks:

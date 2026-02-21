@@ -25,7 +25,7 @@ _currency_key = {
 }
 
 _letter_key_vi = {
-    "a": "ây", "b": "bê", "c": "xê", "d": "dê", "đ": "đê", "f": "ép", "g": "gờ", "h": "hát",
+    "a": "a", "b": "bê", "c": "xê", "d": "dê", "đ": "đê", "f": "ép", "g": "gờ", "h": "hát",
     "i": "ai", "j": "chây", "k": "kây", "l": "lờ", "m": "mờ", "n": "nờ", "o": "ô",
     "p": "pê", "q": "kiu", "r": "rờ", "s": "ét", "t": "ti", "v": "vi", "w": "vê kép", "x": "ít", "z": "dét"
 }
@@ -45,56 +45,85 @@ _acronyms_exceptions_vi = {
 _roman_number_re = r"\b(?=[IVXLCDM]{2,})M{0,4}(CM|CD|D?C{0,3})(XC|XL|L?X{0,3})(IX|IV|V?I{0,3})\b"
 _letter_re = r"(chữ|chữ cái|kí tự|ký tự)\s+(['\"]?)([a-z])(['\"]?)\b"
 
-def _strip_dot_sep(num_str):
-    if re.fullmatch(r"\d+(\.\d{3})+", num_str):
-        return num_str.replace(".", "")
-    return num_str
+def _expand_number_with_sep(num_str):
+    if not num_str: return ""
+    if "," in num_str:
+        # Standard Vietnamese float: 1,5 or 1.000,5
+        clean_num = num_str.replace(".", "")
+        parts = clean_num.split(",")
+        if len(parts) == 2:
+            return f"{n2w(parts[0])} phẩy {n2w(parts[1])}"
+    
+    if "." in num_str:
+        # Check if it's a thousand separator format (e.g. 1.000, 1.000.000)
+        # Vietnamese thousand sep is ALWAYS exactly 3 digits after the dot.
+        if re.fullmatch(r"\d+(?:\.\d{3})+", num_str):
+            return n2w(num_str.replace(".", ""))
+        # Otherwise treat dot as "chấm" (e.g. version 1.3 or English-style decimal 1.5)
+        return " chấm ".join([n2w(p) for p in num_str.split(".")])
+        
+    return n2w(num_str)
 
 def expand_measurement(text):
     magnitude_p = r"\s*(tỷ|triệu|nghìn|ngàn)?\s*"
-    def _repl(m, full):
-        num = _strip_dot_sep(m.group(1))
-        mag = m.group(2) if m.group(2) else ""
-        return f"{n2w(num)} {mag} {full}".replace("  ", " ").strip()
+    numeric_p = r"((?:\d+[.,])*\d+)"
     
-    for unit, full in _measurement_key_vi.items():
-        if len(unit) == 1:
-            pattern = rf"\b((?:\d+\.)*\d+){magnitude_p}{unit}\b"
-            text = re.sub(pattern, lambda m, f=full: _repl(m, f), text)
-        else:
-            pattern = rf"\b((?:\d+\.)*\d+){magnitude_p}{unit}\b"
-            text = re.sub(pattern, lambda m, f=full: _repl(m, f), text, flags=re.IGNORECASE)
+    def _repl(m, full):
+        num = m.group(1)
+        mag = m.group(2) if m.group(2) else ""
+        expanded_num = _expand_number_with_sep(num)
+        return f"{expanded_num} {mag} {full}".replace("  ", " ").strip()
+    
+    for unit, full in sorted(_measurement_key_vi.items(), key=lambda x: len(x[0]), reverse=True):
+        # Case with number
+        pattern = rf"\b{numeric_p}{magnitude_p}{unit}\b"
+        text = re.sub(pattern, lambda m, f=full: _repl(m, f), text, flags=re.IGNORECASE)
+        
+        # Standalone units
+        safe_standalone = [
+            "km", "cm", "mm", "kg", "mg",
+            "m2", "km2", "usd", "vnd",
+            "mhz", "khz", "ghz", "hz"
+        ]
+        if unit.lower() in safe_standalone:
+            # First try with standard word boundaries
+            text = re.sub(rf"(?<![\d.,])\b{unit}\b", f" {full} ", text, flags=re.IGNORECASE)
     return text
 
 def expand_currency(text):
     magnitude_p = r"\s*(tỷ|triệu|nghìn|ngàn)?\s*"
+    numeric_p = r"((?:\d+[.,])*\d+)"
+    
     def _repl(m, full):
-        num = _strip_dot_sep(m.group(1))
+        num = m.group(1)
         mag = m.group(2) if m.group(2) else ""
-        return f"{n2w(num)} {mag} {full}".replace("  ", " ").strip()
+        expanded_num = _expand_number_with_sep(num)
+        return f"{expanded_num} {mag} {full}".replace("  ", " ").strip()
         
-    text = re.sub(rf"\$\s*((?:\d+\.)*\d+){magnitude_p}", lambda m: f"{n2w(_strip_dot_sep(m.group(1)))} {m.group(2) if m.group(2) else ''} đô la Mỹ".replace("  ", " ").strip(), text)
-    text = re.sub(rf"((?:\d+\.)*\d+){magnitude_p}\$", lambda m: f"{n2w(_strip_dot_sep(m.group(1)))} {m.group(2) if m.group(2) else ''} đô la Mỹ".replace("  ", " ").strip(), text)
-    text = re.sub(r"((?:\d+\.)*\d+)\s*%", lambda m: f"{n2w(_strip_dot_sep(m.group(1)))} phần trăm", text)
+    text = re.sub(rf"\$\s*{numeric_p}{magnitude_p}", lambda m: _repl(m, "đô la Mỹ"), text)
+    text = re.sub(rf"{numeric_p}{magnitude_p}\$", lambda m: _repl(m, "đô la Mỹ"), text)
+    text = re.sub(rf"{numeric_p}\s*%", lambda m: f"{_expand_number_with_sep(m.group(1))} phần trăm", text)
     
     for unit, full in _currency_key.items():
         if unit == "%": continue
-        text = re.sub(rf"\b((?:\d+\.)*\d+){magnitude_p}{unit}\b", lambda m, f=full: _repl(m, f), text, flags=re.IGNORECASE)
+        text = re.sub(rf"\b{numeric_p}{magnitude_p}{unit}\b", lambda m, f=full: _repl(m, f), text, flags=re.IGNORECASE)
     return text
 
 def expand_compound_units(text):
+    numeric_p = r"((?:\d+[.,])*\d+)"
     def _repl_compound(m):
-        num = _strip_dot_sep(m.group(1)) if m.group(1) else ""
+        num_str = m.group(1) if m.group(1) else ""
+        num = _expand_number_with_sep(num_str)
         u1 = m.group(2).lower()
         u2 = m.group(3).lower()
         full1 = _measurement_key_vi.get(u1, u1)
         full2 = _measurement_key_vi.get(u2, u2)
         res = f"{full1} trên {full2}"
         if num:
-            res = f"{n2w(num)} {res}"
+            res = f"{num} {res}"
         return res
 
-    pattern = r"(\d+(?:\.\d{3})*)?\s*\b([a-zμµ²³°]+)/([a-zμµ²³°0-9]+)\b"
+    pattern = rf"{numeric_p}?\s*\b([a-zμµ²³°]+)/([a-zμµ²³°0-9]+)\b"
     text = re.sub(pattern, _repl_compound, text, flags=re.IGNORECASE)
     return text
 
@@ -116,11 +145,24 @@ def expand_letter(match):
         return f"{prefix} {_letter_key_vi[char.lower()]} "
     return match.group(0)
 
-def normalize_others(text):
+def expand_abbreviations(text):
     abbrs = {"v.v": " vân vân", "v/v": " về việc", "ko": " không", "đ/c": "địa chỉ"}
     for k, v in abbrs.items():
         text = text.replace(k, v)
+    return text
 
+def expand_standalone_letters(text):
+    def _repl_letter(m):
+        char = m.group(1).lower()
+        if char in _letter_key_vi:
+            return f" {_letter_key_vi[char]} "
+        return m.group(0)
+    
+    # Match a standalone letter (optionally followed by a dot)
+    # Using word boundaries to avoid matching letters inside words.
+    return re.sub(r'\b([a-zA-Z])\b\.?', _repl_letter, text)
+
+def normalize_others(text):
     for k, v in _acronyms_exceptions_vi.items():
         text = re.sub(rf"\b{k}\b", v, text)
     
@@ -156,7 +198,7 @@ def normalize_others(text):
 
     def _expand_version(m):
         return ' chấm '.join(m.group(0).split('.'))
-    text = re.sub(r'\b\d+(?:\.\d+){2,}\b', _expand_version, text)
+    text = re.sub(r'\b\d+(?:\.\d+)+\b', _expand_version, text)
 
     text = re.sub(r'[^\w\sàáảãạăắằẳẵặâấầẩẫậèéẻẽẹêếềểễệìíỉĩịòóỏõọôốồổỗộơớờởỡợùúủũụưứừửữợỳýỷỹỵđ.,!?;:@%_]', ' ', text)
     

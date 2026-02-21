@@ -4,9 +4,10 @@ from .symbols import vietnamese_re, vietnamese_for_date_re
 
 day_in_month = [31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
 _date_seperator = r"(\/|-|\.)"
+_short_date_seperator = r"(\/|-)"
 
 _full_date_pattern = r"\b(\d{1,2})" + _date_seperator + r"(\d{1,2})" + _date_seperator + r"(\d{4})\b"
-_day_month_pattern = r"\b(\d{1,2})" + _date_seperator + r"(\d{1,2})\b"
+_day_month_pattern = r"\b(\d{1,2})" + _short_date_seperator + r"(\d{1,2})\b"
 _month_year_pattern = r"\b(\d{1,2})" + _date_seperator + r"(\d{4})\b"
 
 _full_time_pattern = r"\b(\d{1,2})(g|:|h)(\d{1,2})(p|:|m)(\d{1,2})(?:\s*(giây|s|g))?\b"

@@ -13,6 +13,7 @@ import queue
 import threading
 import yaml
 from vieneu_utils.core_utils import split_text_into_chunks, join_audio_chunks, env_bool
+from vieneu_utils.normalize_text import VietnameseTTSNormalizer
 from functools import lru_cache
 import gc
 
@@ -41,6 +42,9 @@ current_backbone = None
 current_codec = None
 model_loaded = False
 using_lmdeploy = False
+
+# Normalizer (module-level singleton)
+_text_normalizer = VietnameseTTSNormalizer()
 
 # Cache for reference texts
 _ref_text_cache = {}
@@ -617,12 +621,14 @@ def synthesize_speech(text: str, voice_choice: str, custom_audio, custom_text: s
         yield None, f"❌ Lỗi xử lý Reference Audio: {str(e)}"
         return
     
-    text_chunks = split_text_into_chunks(raw_text, max_chars=max_chars_chunk)
-    total_chunks = len(text_chunks)
-    
     # === STANDARD MODE ===
     if generation_mode == "Standard (Một lần)":
         backend_name = "LMDeploy" if using_lmdeploy else "Standard"
+
+        normalized_text = _text_normalizer.normalize(raw_text)
+        text_chunks = split_text_into_chunks(normalized_text, max_chars=max_chars_chunk)
+        total_chunks = len(text_chunks)
+
         batch_info = " (Batch Mode)" if use_batch and using_lmdeploy and total_chunks > 1 else ""
         
         # Show batch size info
@@ -666,7 +672,9 @@ def synthesize_speech(text: str, voice_choice: str, custom_audio, custom_text: s
                         chunk, 
                         ref_codes=ref_codes, 
                         ref_text=ref_text_raw,
-                        temperature=temperature
+                        temperature=temperature,
+                        max_chars=max_chars_chunk,
+                        skip_normalize=True
                     )
                     
                     if chunk_wav is not None and len(chunk_wav) > 0:
@@ -727,6 +735,9 @@ def synthesize_speech(text: str, voice_choice: str, custom_audio, custom_text: s
         error_event = threading.Event()
         error_msg = ""
         
+        normalized_text = _text_normalizer.normalize(raw_text)
+        text_chunks = split_text_into_chunks(normalized_text, max_chars=max_chars_chunk)
+        
         def producer_thread():
             nonlocal error_msg
             try:
@@ -737,7 +748,9 @@ def synthesize_speech(text: str, voice_choice: str, custom_audio, custom_text: s
                         chunk_text, 
                         ref_codes=ref_codes, 
                         ref_text=ref_text_raw,
-                        temperature=temperature
+                        temperature=temperature,
+                        max_chars=max_chars_chunk,
+                        skip_normalize=True
                     )
                     
                     for part_idx, audio_part in enumerate(stream_gen):

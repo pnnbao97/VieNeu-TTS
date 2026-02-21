@@ -38,6 +38,7 @@ test_groups = {
         ("1.000",    "một nghìn"),
         ("1.000.000","một triệu"),
         ("3,14",     "ba phẩy mười bốn"),
+        ("1.3",      "một chấm ba"),
     ],
 
     # ─── 3. SỐ ĐIỆN THOẠI ────────────────────────────────────────────────────
@@ -65,6 +66,7 @@ test_groups = {
         ("21/02/2025", "ngày hai mươi mốt tháng hai năm hai nghìn không trăm hai mươi lăm"),
         ("01-01-2024", "ngày một tháng một năm hai nghìn không trăm hai mươi bốn"),
         ("31.12.2023", "ngày ba mươi mốt tháng mười hai năm hai nghìn không trăm hai mươi ba"),
+        ("31.12.1997", "ngày ba mươi mốt tháng mười hai năm một nghìn chín trăm chín mươi bảy"),
     ],
 
     "Ngày tháng (ngắn)": [
@@ -106,6 +108,7 @@ test_groups = {
         ("370 tỷ USD", "ba trăm bảy mươi tỷ đô la Mỹ"),
         ("5 triệu VND", "năm triệu đồng"),
         ("10 nghìn USD", "mười nghìn đô la Mỹ"),
+        ("8,92 tỷ USD", "tám phẩy chín mươi hai tỷ đô la Mỹ"),
     ],
 
     # ─── 9. ĐƠN VỊ ĐO LƯỜNG ─────────────────────────────────────────────────
@@ -123,6 +126,14 @@ test_groups = {
         ("20m3",  "hai mươi mét khối"),
         ("300.000km", "ba trăm nghìn ki lô mét"),
         ("5 triệu km", "năm triệu ki lô mét"),
+        ("1,5 ha", "một phẩy năm héc ta"),
+        ("1.5 ha", "một chấm năm héc ta"),
+    ],
+
+    # ─── 10. KHOẢNG / DÃY SỐ ──────────────────────────────────────────────────
+    "Khoảng / Dãy số": [
+        ("700-900", "bảy trăm đến chín trăm"),
+        ("0,5-0,9", "không phẩy năm đến không phẩy chín"),
     ],
 
     # ─── 10. SỐ LA MÃ ────────────────────────────────────────────────────────
@@ -136,7 +147,7 @@ test_groups = {
 
     # ─── 11. CHỮ CÁI ─────────────────────────────────────────────────────────
     "Chữ cái": [
-        ("ký tự A",     "ký tự ây"),
+        ("ký tự A",     "ký tự a"),
         ("chữ B",       "chữ bê"),
         ("ký tự 'C'",   "ký tự xê"),
         ("chữ cái Z",   "chữ cái dét"),
@@ -169,9 +180,9 @@ test_groups = {
 
     # ─── 14. DẤU CÂU ─────────────────────────────────────────────────────────
     "Dấu câu và ký tự đặc biệt": [
-        ("A & B",              "a và b"),
-        ("A + B",              "a cộng b"),
-        ("A = B",              "a bằng b"),
+        ("A & B",              "a và bê"),
+        ("A + B",              "a cộng bê"),
+        ("A = B",              "a bằng bê"),
         ("#1",                 "thăng một"),
         ("(text in brackets)", ", text in brackets,"),
         ("[text in brackets]", ", text in brackets,"),
@@ -192,6 +203,15 @@ test_groups = {
         ("Thế kỷ XXI chứng kiến sự phát triển của <en>AI</en> và vũ trụ học",
          "thế kỷ hai mươi mốt chứng kiến sự phát triển của <en>AI</en> và vũ trụ học"),
         ("Đề án 06 và Chỉ thị 04", "đề án không sáu và chỉ thị không bốn"),
+    ],
+
+    # ─── 17. AN TOÀN (KHÔNG NHẦM LẪN) ──────────────────────────────────────────
+    "An toàn (Không nhầm lẫn)": [
+        ("Anh M. đi bộ", "anh mờ đi bộ"),
+        ("Vitamin G", "vitamin gờ"),
+        ("L. là tên riêng", "lờ là tên riêng"),
+        ("5m chiều dài", "năm mét chiều dài"),
+        ("Đơn vị km", "đơn vị ki lô mét"),
     ],
 }
 

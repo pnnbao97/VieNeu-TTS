@@ -110,11 +110,12 @@ def phonemize_text(text: str) -> str:
     )
 
 
-def phonemize_with_dict(text: str, phoneme_dict=phoneme_dict) -> str:
+def phonemize_with_dict(text: str, phoneme_dict=phoneme_dict, skip_normalize: bool = False) -> str:
     """
     Phonemize single text with dictionary lookup and EN tag support.
     """
-    text = normalizer.normalize(text)
+    if not skip_normalize:
+        text = normalizer.normalize(text)
     
     # Split by EN tags
     parts = re.split(r'(<en>.*?</en>)', text, flags=re.IGNORECASE)
@@ -221,18 +222,22 @@ def phonemize_with_dict(text: str, phoneme_dict=phoneme_dict) -> str:
     return result
 
 
-def phonemize_batch(texts: list, phoneme_dict=phoneme_dict) -> list:
+def phonemize_batch(texts: list, phoneme_dict=phoneme_dict, skip_normalize: bool = False) -> list:
     """
     Phonemize multiple texts with optimal batching.
     
     Args:
         texts: List of text strings to phonemize
         phoneme_dict: Phoneme dictionary for lookup
+        skip_normalize: If True, skip normalization (use when text is pre-normalized)
     
     Returns:
         List of phonemized texts
     """
-    normalized_texts = [normalizer.normalize(text) for text in texts]
+    if skip_normalize:
+        normalized_texts = texts
+    else:
+        normalized_texts = [normalizer.normalize(text) for text in texts]
     
     all_en_texts = []
     all_en_maps = []

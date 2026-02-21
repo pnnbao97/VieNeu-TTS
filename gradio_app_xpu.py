@@ -23,6 +23,7 @@ import gc
 
 from vieneu.core_xpu import XPUVieNeuTTS
 from vieneu_utils.core_utils import split_text_into_chunks, join_audio_chunks, env_bool
+from vieneu_utils.normalize_text import VietnameseTTSNormalizer
 from functools import lru_cache
 
 try:
@@ -61,6 +62,9 @@ tts = None
 current_backbone = None
 current_codec = None
 model_loaded = False
+
+# Normalizer (module-level singleton)
+_text_normalizer = VietnameseTTSNormalizer()
 
 def get_available_devices() -> list[str]:
     """Chỉ trả về XPU cho phiên bản này."""
@@ -330,7 +334,8 @@ def synthesize_speech(text: str, voice_choice: str, custom_audio, custom_text: s
         yield None, f"❌ Lỗi xử lý Reference Audio: {str(e)}"
         return
     
-    text_chunks = split_text_into_chunks(raw_text, max_chars=max_chars_chunk)
+    normalized_text = _text_normalizer.normalize(raw_text)
+    text_chunks = split_text_into_chunks(normalized_text, max_chars=max_chars_chunk)
     total_chunks = len(text_chunks)
     
     if not text_chunks:
@@ -397,7 +402,8 @@ def synthesize_speech(text: str, voice_choice: str, custom_audio, custom_text: s
                     chunk, 
                     ref_codes=ref_codes, 
                     ref_text=ref_text_raw,
-                    temperature=temperature
+                    temperature=temperature,
+                    skip_normalize=True
                 )
                 
                 if chunk_wav is not None and len(chunk_wav) > 0:
@@ -449,7 +455,8 @@ def synthesize_speech(text: str, voice_choice: str, custom_audio, custom_text: s
                         chunk_text, 
                         ref_codes=ref_codes, 
                         ref_text=ref_text_raw,
-                        temperature=temperature
+                        temperature=temperature,
+                        skip_normalize=True
                     )
                     
                     for part_idx, audio_part in enumerate(stream_gen):
