@@ -4,7 +4,7 @@ from .symbols import vietnamese_re, vietnamese_without_num_re
 
 _en_letter_names = {
     "a": "ây", "b": "bi", "c": "xi", "d": "đi", "e": "i", "f": "ép", "g": "di",
-    "h": "ếch", "i": "ai", "j": "giây", "k": "kây", "l": "eo", "m": "em", "n": "en",
+    "h": "ếch", "i": "ai", "j": "giây", "k": "cây", "l": "eo", "m": "em", "n": "en",
     "o": "âu", "p": "pi", "q": "kiu", "r": "a", "s": "ét", "t": "ti", "u": "du",
     "v": "vi", "w": "đắp bờ liu", "x": "ích", "y": "quai", "z": "di",
     "0": "zero", "1": "one", "2": "two", "3": "three", "4": "four",
