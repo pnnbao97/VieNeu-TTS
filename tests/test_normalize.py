@@ -48,8 +48,8 @@ TEST_CASES = [
     ("01/12", "ngày một tháng mười hai"),
     ("02/2025", "tháng hai năm hai nghìn không trăm hai mươi lăm"),
     ("12/2024", "tháng mười hai năm hai nghìn không trăm hai mươi bốn"),
-    ("32/01", "ba mươi hai không một"),
-    ("01/13", "không một mười ba"),
+    ("32/01", "ba mươi hai xẹt không một"),
+    ("01/13", "không một trên mười ba"),
 
     # ─── 7. THỜI GIAN ─────────────────────────────────────────────────────────
     ("14h30",   "mười bốn giờ ba mươi phút"),

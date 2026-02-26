@@ -45,18 +45,18 @@ _measurement_key_vi = {
     "bar": "ba", "mbar": "mi li ba", "atm": "át mốt phia", "psi": "pi ét xai",
     "j": "giun", "kj": "ki lô giun",
     "cal": "ca lo", "kcal": "ki lô ca lo",
-    "h": "giờ", "p": "phút", "s": "giây"
+    "h": "giờ", "p": "phút", "s": "giây",
+    "sqm": "mét vuông", "cum": "mét khối",
+    "gb": "gi ga bai", "mb": "mê ga bai", "kb": "ki lô bai", "tb": "tê ra bai",
+    "db": "đê xi ben", "oz": "ao xơ", "lb": "pao", "lbs": "pao",
+    "ft": "phít", "in": "ins", "dpi": "đê pê i"
 }
 
 _currency_key = {
     "usd": "đô la Mỹ", "vnd": "đồng", "đ": "đồng", "euro": "ơ rô", "%": "phần trăm"
 }
 
-_letter_key_vi = {
-    "a": "a", "b": "bê", "c": "xê", "d": "dê", "đ": "đê", "f": "ép", "g": "gờ", "h": "hát",
-    "i": "i", "j": "giây", "k": "ca", "l": "lờ", "m": "mờ", "n": "nờ", "o": "o",
-    "p": "phê", "q": "qui", "r": "rờ", "s": "sờ", "t": "tê", "u": "u", "v": "vờ", "w": "vê kép", "x": "ích xì", "y": "i dài", "z": "dét"
-}
+_letter_key_vi = _vi_letter_names
 
 _acronyms_exceptions_vi = {
     "CĐV": "cổ động viên", "TV": "ti vi", "HĐND": "hội đồng nhân dân", "TAND": "toàn án nhân dân",
@@ -190,6 +190,44 @@ def expand_standalone_letters(text):
     # Using word boundaries to avoid matching letters inside words.
     return re.sub(r'\b([a-zA-Z])\b\.?', _repl_letter, text)
 
+def normalize_urls(text):
+    # Regex for URLs starting with http, https or www
+    url_re = r'\b(?:https?://|www\.)[A-Za-z0-9.\-_~:/?#\[\]@!$&\'()*+,;=]+\b'
+
+    def _repl_url(m):
+        url = m.group(0)
+        res = []
+        for char in url.lower():
+            if char.isalnum():
+                if char.isdigit():
+                    res.append(n2w_single(char))
+                else:
+                    res.append(_vi_letter_names.get(char, char))
+            elif char == '.': res.append('chấm')
+            elif char == '/': res.append('xẹt')
+            elif char == ':': res.append('hai chấm')
+            elif char == '-': res.append('gạch ngang')
+            elif char == '_': res.append('gạch dưới')
+            elif char == '?': res.append('hỏi')
+            elif char == '&': res.append('và')
+            elif char == '=': res.append('bằng')
+            else: res.append(char)
+        return " ".join(res)
+
+    return re.sub(url_re, _repl_url, text)
+
+def normalize_slashes(text):
+    # Match number/number (not handled by date or units)
+    pattern = r'\b(\d+)/(\d+)\b'
+    def _repl(m):
+        n1 = m.group(1)
+        n2 = m.group(2)
+        # If it's likely an address (first number is large)
+        if len(n1) > 2 or int(n1) > 31:
+            return f"{n2w(n1)} xẹt {n2w(n2)}"
+        return f"{n2w(n1)} trên {n2w(n2)}"
+    return re.sub(pattern, _repl, text)
+
 def normalize_emails(text):
     email_re = r'\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b'
 
@@ -268,11 +306,10 @@ def normalize_others(text):
     for k, v in _acronyms_exceptions_vi.items():
         text = re.sub(rf"\b{k}\b", v, text)
     
+    text = normalize_urls(text)
     text = normalize_emails(text)
+    text = normalize_slashes(text)
 
-    text = expand_compound_units(text)
-    text = expand_measurement(text)
-    text = expand_currency(text)
     text = re.sub(_roman_number_re, expand_roman, text)
     text = re.sub(_letter_re, expand_letter, text, flags=re.IGNORECASE)
     
@@ -290,6 +327,14 @@ def normalize_others(text):
     
     text = text.replace('"', '').replace("'", '').replace(''', '').replace(''', '')
     text = text.replace('&', ' và ').replace('+', ' cộng ').replace('=', ' bằng ').replace('#', ' thăng ')
+    text = text.replace('>', ' lớn hơn ').replace('<', ' nhỏ hơn ')
+    text = text.replace('≥', ' lớn hơn hoặc bằng ').replace('≤', ' nhỏ hơn hoặc bằng ')
+    text = text.replace('±', ' cộng trừ ').replace('≈', ' xấp xỉ ')
+
+    # Re-run expansions in case symbol replacement uncovered new patterns (e.g. #1kg -> thăng 1kg)
+    text = expand_compound_units(text)
+    text = expand_measurement(text)
+    text = expand_currency(text)
     
     text = re.sub(r'[\(\[\{]\s*(.*?)\s*[\)\]\}]', r', \1, ', text)
     text = re.sub(r'[\[\]\(\)\{\}]', ' ', text)
