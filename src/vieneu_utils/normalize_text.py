@@ -1,11 +1,14 @@
 import re
 from .cleaner import clean_vietnamese_text
 
+# Pre-compiled regex patterns
+EN_TAG_RE = re.compile(r'<en>.*?</en>', re.IGNORECASE)
+WHITESPACE_RE = re.compile(r'[ \t\xA0]+')
+
 class VietnameseTTSNormalizer:
     """
     A text normalizer for Vietnamese Text-to-Speech systems.
     Converts numbers, dates, units, and special characters into readable Vietnamese text.
-    All core logic is implemented in the cleaner module.
     """
     
     def __init__(self):
@@ -24,14 +27,14 @@ class VietnameseTTSNormalizer:
             en_contents.append(match.group(0))
             return placeholder_pattern.format(len(en_contents) - 1)
         
-        text = re.sub(r'<en>.*?</en>', extract_en, text, flags=re.IGNORECASE)
+        text = EN_TAG_RE.sub(extract_en, text)
         
         # Step 2: Core Normalization
         text = clean_vietnamese_text(text)
         
         # Final cleanup - preserve newlines
         text = text.lower()
-        text = re.sub(r'[ \t\xA0]+', ' ', text).strip()
+        text = WHITESPACE_RE.sub(' ', text).strip()
         
         # Step 3: Restore EN tags
         for idx, en_content in enumerate(en_contents):
@@ -39,19 +42,16 @@ class VietnameseTTSNormalizer:
             text = text.replace(placeholder, en_content + ' ')
         
         # Final whitespace cleanup - preserve newlines
-        text = re.sub(r'[ \t\xA0]+', ' ', text).strip()
+        text = WHITESPACE_RE.sub(' ', text).strip()
         
         return text
 
 if __name__ == "__main__":
     normalizer = VietnameseTTSNormalizer()
-    
     test_texts = [
         "Lễ kỷ niệm 70 năm Chiến thắng Điện Biên Phủ (07/5/1954 - 07/5/2024).",
         "Phiên bản 1.0.4, tốc độ 60km/h, nhiệt độ 30°C.",
         "Số điện thoại: +84 912.345.678"
     ]
-    
     for t in test_texts:
-        print(f"In:  {t}")
-        print(f"Out: {normalizer.normalize(t)}\n")
+        print(f"In:  {t}\nOut: {normalizer.normalize(t)}\n")
