@@ -3,20 +3,20 @@ from .num2vi import n2w, n2w_single
 from .symbols import vietnamese_re, vietnamese_without_num_re
 
 _en_letter_names = {
-    "a": "ây", "b": "bi", "c": "xi", "d": "đi", "e": "y", "f": "ép", "g": "gi",
-    "h": "êch", "i": "ai", "j": "chây", "k": "kê", "l": "eo", "m": "em", "n": "en",
-    "o": "ô", "p": "pi", "q": "kiu", "r": "a", "s": "ét", "t": "ti", "u": "yu",
-    "v": "vi", "w": "dắp bờ liu", "x": "ích", "y": "quai", "z": "zi",
-    "0": "di râu", "1": "uăn", "2": "tu", "3": "tri", "4": "pho", "5": "fai",
-    "6": "sích", "7": "xe vừn", "8": "eit", "9": "nai"
+    "a": "ây", "b": "bi", "c": "xi", "d": "đi", "e": "i", "f": "ép", "g": "di",
+    "h": "ếch", "i": "ai", "j": "giây", "k": "kây", "l": "eo", "m": "em", "n": "en",
+    "o": "âu", "p": "pi", "q": "kiu", "r": "a", "s": "ét", "t": "ti", "u": "du",
+    "v": "vi", "w": "đắp bờ liu", "x": "ích", "y": "quai", "z": "di",
+    "0": "zero", "1": "one", "2": "two", "3": "three", "4": "four",
+    "5": "five", "6": "six", "7": "seven", "8": "eight", "9": "nine"
 }
 
 _vi_letter_names = {
-    "a": "a", "b": "bờ", "c": "xê", "d": "dê", "đ": "đê", "e": "e", "ê": "ê",
-    "f": "ép", "g": "gờ", "h": "hát", "i": "i", "j": "chây", "k": "ca", "l": "lờ",
-    "m": "mờ", "n": "nờ", "o": "o", "ô": "ô", "ơ": "ơ", "p": "pê", "q": "kiu",
-    "r": "rờ", "s": "ét", "t": "ti", "u": "u", "ư": "ư", "v": "vi", "w": "vê kép",
-    "x": "ích", "y": "i dài", "z": "dét"
+    "a": "a", "b": "bê", "c": "xê", "d": "dê", "đ": "đê", "e": "e", "ê": "ê",
+    "f": "ép", "g": "gờ", "h": "hát", "i": "i", "j": "giây", "k": "ca", "l": "lờ",
+    "m": "mờ", "n": "nờ", "o": "o", "ô": "ô", "ơ": "ơ", "p": "phê", "q": "qui",
+    "r": "rờ", "s": "sờ", "t": "tê", "u": "u", "ư": "ư", "v": "vờ", "w": "vê kép",
+    "x": "ích xì", "y": "i dài", "z": "dét"
 }
 
 _common_email_domains = {
@@ -54,8 +54,8 @@ _currency_key = {
 
 _letter_key_vi = {
     "a": "a", "b": "bê", "c": "xê", "d": "dê", "đ": "đê", "f": "ép", "g": "gờ", "h": "hát",
-    "i": "i", "j": "chây", "k": "ca", "l": "lờ", "m": "mờ", "n": "nờ", "o": "o",
-    "p": "pê", "q": "kiu", "r": "rờ", "s": "ét", "t": "ti", "u": "u", "v": "vi", "w": "vê kép", "x": "ít", "y": "y", "z": "dét"
+    "i": "i", "j": "giây", "k": "ca", "l": "lờ", "m": "mờ", "n": "nờ", "o": "o",
+    "p": "phê", "q": "qui", "r": "rờ", "s": "sờ", "t": "tê", "u": "u", "v": "vờ", "w": "vê kép", "x": "ích xì", "y": "i dài", "z": "dét"
 }
 
 _acronyms_exceptions_vi = {
