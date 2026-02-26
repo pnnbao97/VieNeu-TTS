@@ -26,8 +26,8 @@ _common_email_domains = {
     "outlook.com": "aut lúc chấm com",
     "hotmail.com": "hót meo chấm com",
     "icloud.com": "ai clao chấm com",
-    "fpt.vn": "ép pê tê chấm vê nờ",
-    "fpt.com.vn": "ép pê tê chấm com chấm vê nờ",
+    "fpt.vn": "ép phê tê chấm vê nờ",
+    "fpt.com.vn": "ép phê tê chấm com chấm vê nờ",
 }
 
 _measurement_key_vi = {
@@ -49,7 +49,7 @@ _measurement_key_vi = {
     "sqm": "mét vuông", "cum": "mét khối",
     "gb": "gi ga bai", "mb": "mê ga bai", "kb": "ki lô bai", "tb": "tê ra bai",
     "db": "đê xi ben", "oz": "ao xơ", "lb": "pao", "lbs": "pao",
-    "ft": "phít", "in": "ins", "dpi": "đê pê i"
+    "ft": "phít", "in": "ins", "dpi": "đê phê i"
 }
 
 _currency_key = {

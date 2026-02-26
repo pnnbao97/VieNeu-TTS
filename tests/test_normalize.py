@@ -181,6 +181,38 @@ TEST_CASES = [
     # ─── 22. PHÂN BIỆT HOA THƯỜNG TRONG CÂU ─────────────────────────────────
     ("TÔI ĐI HỌC", "tôi đi học"),
     ("Chào mừng bạn đến với CTY.", "chào mừng bạn đến với xi ti quai."),
+
+    # ─── 23. TOÀN DIỆN (CẢI TIẾN MỚI) ──────────────────────────────────────────
+    # URLs
+    ("Truy cập https://vieneu.io để biết thêm chi tiết.", "truy cập hát tê tê phê sờ hai chấm xẹt xẹt vờ i e nờ e u chấm i o để biết thêm chi tiết."),
+    ("Website www.google.com rất hữu ích.", "website vê kép vê kép vê kép chấm gờ o o gờ lờ e chấm xê o mờ rất hữu ích."),
+
+    # Slashes / Địa chỉ
+    ("Địa chỉ nhà tôi là 123/4 đường Nguyễn Trãi.", "địa chỉ nhà tôi là một trăm hai mươi ba xẹt bốn đường nguyễn trãi."),
+    ("Tỷ lệ là 100/2.", "tỷ lệ là một trăm xẹt hai."),
+
+    # Ký hiệu toán học
+    ("Nếu x > 5 và y ≤ 10 thì xấp xỉ ≈ 0.", "nếu ích xì lớn hơn năm và i dài nhỏ hơn hoặc bằng mười thì xấp xỉ xấp xỉ không."),
+    ("Nhiệt độ là 30°C ± 2°C.", "nhiệt độ là ba mươi độ xê cộng trừ hai độ xê."),
+    ("Biểu thức ≥ 10.", "biểu thức lớn hơn hoặc bằng mười."),
+
+    # Đơn vị đo lường mở rộng
+    ("Dung lượng 16GB.", "dung lượng mười sáu gi ga bai."),
+    ("File nặng 50MB.", "file nặng năm mươi mê ga bai."),
+    ("Ổ cứng 1TB.", "ổ cứng một tê ra bai."),
+    ("Căn hộ 75sqm.", "căn hộ bảy mươi lăm mét vuông."),
+    ("Bể bơi 100cum.", "bể bơi một trăm mét khối."),
+    ("Âm thanh 80db.", "âm thanh tám mươi đê xi ben."),
+    ("Trọng lượng 10lb.", "trọng lượng mười pao."),
+    ("Màn hình 24in.", "màn hình hai mươi bốn ins."),
+    ("Độ phân giải 300dpi.", "độ phân giải ba trăm đê phê i"),
+
+    # Emails mở rộng
+    ("Email công việc: admin@fpt.vn", "email công việc: a dê mờ i nờ a còng ép phê tê chấm vê nờ"),
+    ("Liên hệ hotmail: test@hotmail.com", "liên hệ hotmail: tê e sờ tê a còng hót meo chấm com"),
+
+    # Redundant expansion (symbol + unit)
+    ("#1kg", "thăng một ki lô gam"),
 ]
 
 @pytest.mark.parametrize("input_text, expected", TEST_CASES)
