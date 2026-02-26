@@ -67,7 +67,8 @@ _acronyms_exceptions_vi = {
     "THCS": "trung học cơ sở", "THPT": "trung học phổ thông", "ĐH": "đại học", "HLV": "huấn luyện viên",
     "GS": "giáo sư", "TS": "tiến sĩ", "TNHH": "trách nhiệm hữu hạn", "VĐV": "vận động viên",
     "GDP": "gi đi pi", "FDI": "ép đê i", "ODA": "ô đê a", "covid": "cô vít", "youtube": "du túp",
-    "TPHCM": "thành phố hồ chí minh", "ĐH": "đại học", "PGS": "phó giáo sư"
+    "TPHCM": "thành phố hồ chí minh", "ĐH": "đại học", "PGS": "phó giáo sư",
+    "TP.": "thành phố", "Q.": "quận", "P.": "phường", "Đ.": "đường", "H.": "huyện", "TX.": "thị xã", "T.": "tỉnh"
 }
 
 _roman_number_re = r"\b(?=[IVXLCDM]{2,})M{0,4}(CM|CD|D?C{0,3})(XC|XL|L?X{0,3})(IX|IV|V?I{0,3})\b"
@@ -216,17 +217,45 @@ def normalize_urls(text):
 
     return re.sub(url_re, _repl_url, text)
 
-def normalize_slashes(text):
-    # Match number/number (not handled by date or units)
-    pattern = r'\b(\d+)/(\d+)\b'
+def normalize_addresses(text):
+    # Match patterns like 68/27/15, 32/5A-7, 17B-C
+    # Must start with a number to avoid matching acronyms or other things
+    pattern = r'\b(\d+[A-Z]*)(?:[/-](\d+[A-Z]*))+\b'
+
     def _repl(m):
-        n1 = m.group(1)
-        n2 = m.group(2)
-        # If it's likely an address (first number is large)
-        if len(n1) > 2 or int(n1) > 31:
-            return f"{n2w(n1)} xẹt {n2w(n2)}"
-        return f"{n2w(n1)} trên {n2w(n2)}"
-    return re.sub(pattern, _repl, text)
+        token = m.group(0)
+        # If it matches a simple date pattern handled elsewhere, skip (unlikely here but safe)
+        if re.match(r'\d{1,2}/\d{1,2}/\d{4}', token): return token
+
+        parts = re.split(r'[/-]', token)
+        # Use " xẹt " for addresses (more common in VN than "trên" for complex ones)
+        # but keep "trên" for simple small-number fractions if desired.
+        # For addresses, "xẹt" is always safe.
+        sep = " xẹt "
+        if len(parts) == 2 and parts[0].isdigit() and parts[1].isdigit():
+            if int(parts[0]) <= 31 and int(parts[1]) <= 12:
+                 # Might be a missed date, but date normalizer runs first.
+                 # Let's use "trên" for simple 2-part numbers
+                 sep = " trên "
+
+        res = []
+        for p in parts:
+            if not p: continue
+            # Handle mixed parts like 5A
+            sub_m = re.match(r'(\d+)([A-Z]*)', p, re.I)
+            if sub_m:
+                num = sub_m.group(1)
+                letters = sub_m.group(2)
+                p_norm = n2w(num)
+                if letters:
+                    for l in letters.lower():
+                        p_norm += " " + _vi_letter_names.get(l, l)
+                res.append(p_norm)
+            else:
+                res.append(p)
+        return sep.join(res)
+
+    return re.sub(pattern, _repl, text, flags=re.I)
 
 def normalize_emails(text):
     email_re = r'\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b'
@@ -296,34 +325,48 @@ def normalize_acronyms(text):
                 if word.isdigit(): return word
                 return " ".join(_en_letter_names.get(c.lower(), c) for c in word)
 
-            # Match 2+ uppercase letters/digits, must contain at least one uppercase letter
-            s = re.sub(r'\b(?=[A-Z0-9]*[A-Z])[A-Z0-9]{2,}\b', _repl_acronym, s)
+            # Match 2+ uppercase letters/digits, must contain at least TWO uppercase letters to be English
+            # e.g., AI, VYE, B2B, A1B are English. B12, 17B are Vietnamese.
+            s = re.sub(r'\b(?=[A-Z0-9]*[A-Z][A-Z0-9]*[A-Z])[A-Z0-9]{2,}\b', _repl_acronym, s)
 
         processed.append(s + sep)
     return "".join(processed)
 
 def normalize_others(text):
-    for k, v in _acronyms_exceptions_vi.items():
-        text = re.sub(rf"\b{k}\b", v, text)
-    
+    # Sort exceptions by length descending to match longer ones first (e.g. TP.HCM before TP)
+    sorted_exceptions = sorted(_acronyms_exceptions_vi.items(), key=lambda x: len(x[0]), reverse=True)
+    for k, v in sorted_exceptions:
+        if k.endswith('.'):
+            text = re.sub(rf"\b{re.escape(k)}(?=\s|$|[^\w])", v + " ", text)
+        else:
+            text = re.sub(rf"\b{re.escape(k)}\b", v, text)
+
     text = normalize_urls(text)
     text = normalize_emails(text)
-    text = normalize_slashes(text)
+    text = normalize_addresses(text)
 
     text = re.sub(_roman_number_re, expand_roman, text)
     text = re.sub(_letter_re, expand_letter, text, flags=re.IGNORECASE)
     
-    def _expand_alphanumeric(m):
+    def _expand_alphanumeric_ld(m):
+        char = m.group(1).lower()
+        num = m.group(2)
+        if char in _letter_key_vi:
+            return f"{_letter_key_vi[char]} {n2w(num)}"
+        return m.group(0)
+
+    def _expand_alphanumeric_dl(m):
         num = m.group(1)
         char = m.group(2).lower()
         if char in _letter_key_vi:
             pronunciation = _letter_key_vi[char]
             if char == 'd' and ('quốc lộ' in text.lower() or 'ql' in text.lower()):
                 pronunciation = 'đê'
-            return f"{num} {pronunciation}"
+            return f"{n2w(num)} {pronunciation}"
         return m.group(0)
     
-    text = re.sub(r'\b(\d+)([a-zA-Z])\b', _expand_alphanumeric, text)
+    text = re.sub(r'\b([a-zA-Z])(\d+)\b', _expand_alphanumeric_ld, text)
+    text = re.sub(r'\b(\d+)([a-zA-Z])\b', _expand_alphanumeric_dl, text)
     
     text = text.replace('"', '').replace("'", '').replace(''', '').replace(''', '')
     text = text.replace('&', ' và ').replace('+', ' cộng ').replace('=', ' bằng ').replace('#', ' thăng ')

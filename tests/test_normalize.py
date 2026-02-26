@@ -49,7 +49,7 @@ TEST_CASES = [
     ("02/2025", "tháng hai năm hai nghìn không trăm hai mươi lăm"),
     ("12/2024", "tháng mười hai năm hai nghìn không trăm hai mươi bốn"),
     ("32/01", "ba mươi hai xẹt không một"),
-    ("01/13", "không một trên mười ba"),
+    ("01/13", "không một xẹt mười ba"),
 
     # ─── 7. THỜI GIAN ─────────────────────────────────────────────────────────
     ("14h30",   "mười bốn giờ ba mươi phút"),
@@ -173,7 +173,7 @@ TEST_CASES = [
 
     # ─── 21. VIẾT TẮT ALPHANUMERIC (ENGLISH STYLE) ──────────────────────────
     ("Mô hình B2B rất phổ biến.", "mô hình bi two bi rất phổ biến."),
-    ("Tôi dùng camera K3.", "tôi dùng camera cây three."),
+    ("Tôi dùng camera K3.", "tôi dùng camera ca ba."),
     ("Mã số A1B.", "mã số ây one bi."),
     ("Tôi đang học về AI.", "tôi đang học về ây ai."),
     ("Dự án VYE.", "dự án vi quai i"),
