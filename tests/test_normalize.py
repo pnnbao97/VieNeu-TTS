@@ -166,6 +166,21 @@ TEST_CASES = [
     ("L. là tên riêng", "lờ là tên riêng"),
     ("5m chiều dài", "năm mét chiều dài"),
     ("Đơn vị km", "đơn vị ki lô mét"),
+
+    # ─── 20. EMAIL ───────────────────────────────────────────────────────────
+    ("Liên hệ qua email pnnbao@gmail.com nhé.", "liên hệ qua email phê nờ nờ bê a o a còng gờ meo chấm com nhé."),
+    ("Email: contact@example.com", "email: xê o nờ tê a xê tê a còng e ích xì a mờ phê lờ e chấm xê o mờ"),
+
+    # ─── 21. VIẾT TẮT ALPHANUMERIC (ENGLISH STYLE) ──────────────────────────
+    ("Mô hình B2B rất phổ biến.", "mô hình bi two bi rất phổ biến."),
+    ("Tôi dùng camera K3.", "tôi dùng camera kây three."),
+    ("Mã số A1B.", "mã số ây one bi."),
+    ("Tôi đang học về AI.", "tôi đang học về ây ai."),
+    ("Dự án VYE.", "dự án vi quai i"),
+
+    # ─── 22. PHÂN BIỆT HOA THƯỜNG TRONG CÂU ─────────────────────────────────
+    ("TÔI ĐI HỌC", "tôi đi học"),
+    ("Chào mừng bạn đến với CTY.", "chào mừng bạn đến với xi ti quai."),
 ]
 
 @pytest.mark.parametrize("input_text, expected", TEST_CASES)
