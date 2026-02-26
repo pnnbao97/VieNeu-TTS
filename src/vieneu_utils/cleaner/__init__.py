@@ -11,7 +11,7 @@ def clean_vietnamese_text(text):
     
     def protect(match):
         idx = len(mask_map)
-        mask = "MASK" + "".join([string.ascii_uppercase[int(d)] for d in str(idx).zfill(4)]) + "MASK"
+        mask = "mask" + "".join([string.ascii_lowercase[int(d)] for d in str(idx).zfill(4)]) + "mask"
         mask_map[mask] = match.group(0)
         return mask
     
