@@ -1,7 +1,11 @@
 import numpy as np
 import torch
 import re
+import logging
 from typing import List, Dict, Optional, Any
+
+# Configure logging
+logger = logging.getLogger("Vieneu.Utils")
 
 # Persistent cache for weights to avoid recomputing if frame_length is constant
 _WEIGHT_CACHE: Dict[int, np.ndarray] = {}
@@ -75,14 +79,14 @@ def _compile_codec_with_triton(codec: Any) -> bool:
                     mode="reduce-overhead",
                     dynamic=True
                 )
-                print("   ✅ Triton compilation enabled for codec")
+                logger.info("   ✅ Triton compilation enabled for codec")
         return True
 
     except ImportError:
         # Silently fail for optional triton optimization
         return False
     except Exception as e:
-        print(f"   ⚠️ Triton compilation failed: {e}")
+        logger.error(f"   ⚠️ Triton compilation failed: {e}")
         return False
 
 # Pre-compile regex for speech token extraction

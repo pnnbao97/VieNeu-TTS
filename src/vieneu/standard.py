@@ -6,7 +6,7 @@ import gc
 import logging
 from .base import BaseVieneuTTS
 from .utils import extract_speech_ids, _linear_overlap_add
-from vieneu_utils.phonemize_text import phonemize_with_dict
+from vieneu_utils.phonemize_text import phonemize_with_dict, phonemize_batch
 from vieneu_utils.core_utils import split_text_into_chunks, join_audio_chunks
 from neucodec import NeuCodec, DistillNeuCodec
 
@@ -181,12 +181,16 @@ class VieNeuTTS(BaseVieneuTTS):
         if not chunks:
             return np.array([], dtype=np.float32)
 
+        # Pre-phonemize all inputs for performance
+        ref_phonemes = phonemize_with_dict(ref_text)
+        chunk_phonemes = phonemize_batch(chunks, skip_normalize=True)
+
         all_wavs = []
-        for chunk in chunks:
+        for phonemes in chunk_phonemes:
             if self._is_quantized_model:
-                output_str = self._infer_ggml(ref_codes, ref_text, chunk, temperature, top_k)
+                output_str = self._infer_ggml(ref_codes, ref_phonemes, phonemes, temperature, top_k)
             else:
-                prompt_ids = self._apply_chat_template(ref_codes, ref_text, chunk)
+                prompt_ids = self._apply_chat_template(ref_codes, ref_phonemes, phonemes)
                 output_str = self._infer_torch(prompt_ids, temperature, top_k)
             wav = self._decode(output_str)
             all_wavs.append(wav)
@@ -202,22 +206,29 @@ class VieNeuTTS(BaseVieneuTTS):
             text = self.normalizer.normalize(text)
 
         chunks = split_text_into_chunks(text, max_chars=max_chars)
-        for chunk in chunks:
+        if not chunks:
+            return
+
+        # Pre-phonemize all inputs for performance
+        ref_phonemes = phonemize_with_dict(ref_text)
+        chunk_phonemes = phonemize_batch(chunks, skip_normalize=True)
+
+        for phonemes in chunk_phonemes:
             if self._is_quantized_model:
-                yield from self._infer_stream_ggml(ref_codes, ref_text, chunk, temperature, top_k)
+                yield from self._infer_stream_ggml(ref_codes, ref_phonemes, phonemes, temperature, top_k)
             else:
-                prompt_ids = self._apply_chat_template(ref_codes, ref_text, chunk)
+                prompt_ids = self._apply_chat_template(ref_codes, ref_phonemes, phonemes)
                 output_str = self._infer_torch(prompt_ids, temperature, top_k)
                 wav = self._decode(output_str)
                 yield self._apply_watermark(wav)
 
-    def _apply_chat_template(self, ref_codes: Union[List[int], torch.Tensor, np.ndarray], ref_text: str, input_text: str) -> List[int]:
+    def _apply_chat_template(self, ref_codes: Union[List[int], torch.Tensor, np.ndarray], ref_phonemes: str, chunk_phonemes: str) -> List[int]:
         if isinstance(ref_codes, (torch.Tensor, np.ndarray)):
             ref_codes_list = ref_codes.flatten().tolist()
         else:
             ref_codes_list = ref_codes
 
-        input_text = phonemize_with_dict(ref_text) + " " + phonemize_with_dict(input_text, skip_normalize=True)
+        full_phonemes = f"{ref_phonemes} {chunk_phonemes}"
 
         speech_replace = self.tokenizer.convert_tokens_to_ids("<|SPEECH_REPLACE|>")
         speech_gen_start = self.tokenizer.convert_tokens_to_ids("<|SPEECH_GENERATION_START|>")
@@ -225,7 +236,7 @@ class VieNeuTTS(BaseVieneuTTS):
         text_prompt_start = self.tokenizer.convert_tokens_to_ids("<|TEXT_PROMPT_START|>")
         text_prompt_end = self.tokenizer.convert_tokens_to_ids("<|TEXT_PROMPT_END|>")
 
-        input_ids = self.tokenizer.encode(input_text, add_special_tokens=False)
+        input_ids = self.tokenizer.encode(full_phonemes, add_special_tokens=False)
         chat = "user: Convert the text to speech:<|TEXT_REPLACE|>\nassistant:<|SPEECH_REPLACE|>"
         ids = self.tokenizer.encode(chat)
 
@@ -256,25 +267,21 @@ class VieNeuTTS(BaseVieneuTTS):
         output_str = self.tokenizer.decode(output_tokens[0, input_length:].cpu().numpy().tolist(), add_special_tokens=False)
         return output_str
 
-    def _infer_ggml(self, ref_codes: Union[List[int], torch.Tensor, np.ndarray], ref_text: str, input_text: str, temperature: float = 1.0, top_k: int = 50) -> str:
+    def _infer_ggml(self, ref_codes: Union[List[int], torch.Tensor, np.ndarray], ref_phonemes: str, chunk_phonemes: str, temperature: float = 1.0, top_k: int = 50) -> str:
         if isinstance(ref_codes, (torch.Tensor, np.ndarray)):
             ref_codes_list = ref_codes.flatten().tolist()
         else:
             ref_codes_list = ref_codes
 
-        ref_text = phonemize_with_dict(ref_text)
-        input_text = phonemize_with_dict(input_text, skip_normalize=True)
         codes_str = "".join([f"<|speech_{idx}|>" for idx in ref_codes_list])
         prompt = (
-            f"user: Convert the text to speech:<|TEXT_PROMPT_START|>{ref_text} {input_text}"
+            f"user: Convert the text to speech:<|TEXT_PROMPT_START|>{ref_phonemes} {chunk_phonemes}"
             f"<|TEXT_PROMPT_END|>\nassistant:<|SPEECH_GENERATION_START|>{codes_str}"
         )
         output = self.backbone(prompt, max_tokens=self.max_context, temperature=temperature, top_k=top_k, stop=["<|SPEECH_GENERATION_END|>"])
         return output["choices"][0]["text"]
 
-    def _infer_stream_ggml(self, ref_codes: Union[np.ndarray, torch.Tensor, List[int]], ref_text: str, input_text: str, temperature: float = 1.0, top_k: int = 50) -> Generator[np.ndarray, None, None]:
-        ref_text = phonemize_with_dict(ref_text)
-        input_text = phonemize_with_dict(input_text, skip_normalize=True)
+    def _infer_stream_ggml(self, ref_codes: Union[np.ndarray, torch.Tensor, List[int]], ref_phonemes: str, chunk_phonemes: str, temperature: float = 1.0, top_k: int = 50) -> Generator[np.ndarray, None, None]:
 
         if isinstance(ref_codes, (torch.Tensor, np.ndarray)):
             ref_codes_list = ref_codes.flatten().tolist()
@@ -283,7 +290,7 @@ class VieNeuTTS(BaseVieneuTTS):
 
         codes_str = "".join([f"<|speech_{idx}|>" for idx in ref_codes_list])
         prompt = (
-            f"user: Convert the text to speech:<|TEXT_PROMPT_START|>{ref_text} {input_text}"
+            f"user: Convert the text to speech:<|TEXT_PROMPT_START|>{ref_phonemes} {chunk_phonemes}"
             f"<|TEXT_PROMPT_END|>\nassistant:<|SPEECH_GENERATION_START|>{codes_str}"
         )
 

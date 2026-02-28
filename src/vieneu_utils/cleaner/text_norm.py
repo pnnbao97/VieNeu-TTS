@@ -88,7 +88,7 @@ RE_TEMP_C = re.compile(r'(\d+(?:[.,]\d+)?)\s*°\s*c\b', re.IGNORECASE)
 RE_TEMP_F = re.compile(r'(\d+(?:[.,]\d+)?)\s*°\s*f\b', re.IGNORECASE)
 RE_DEGREE = re.compile(r'°')
 RE_VERSION = re.compile(r'\b(\d+(?:\.\d+)+)\b')
-RE_CLEAN_OTHERS = re.compile(r'[^\w\sàáảãạăắằẳẵặâấầẩẫậèéẻẽẹêếềểễệìíỉĩịòóỏõọôốồổỗộơớờởỡợùúủũụưứừửữợỳýỷỹỵđ.,!?;:@%_]')
+RE_CLEAN_OTHERS = re.compile(r'[^\w\sàáảãạăắằẳẵặâấầẩẫậèéẻẽẹêếềểễệìíỉĩịòóỏõọôốồổỗộơớờởỡợùúủũụưứừửữỳýỷỹỵđ.,!?;:@%_]')
 
 # Reusable patterns for measurement/currency
 _MAGNITUDE_P = r"\s*(tỷ|triệu|nghìn|ngàn)?\s*"
@@ -329,7 +329,9 @@ def normalize_others(text):
     
     text = RE_ALPHANUMERIC.sub(_expand_alphanumeric, text)
     
-    text = text.replace('"', '').replace("'", '').replace(''', '').replace(''', '')
+    # Handle quotes and smart quotes
+    text = re.sub(r'["\'“”‘’]', '', text)
+
     text = text.replace('&', ' và ').replace('+', ' cộng ').replace('=', ' bằng ').replace('#', ' thăng ')
     text = text.replace('>', ' lớn hơn ').replace('<', ' nhỏ hơn ')
     text = text.replace('≥', ' lớn hơn hoặc bằng ').replace('≤', ' nhỏ hơn hoặc bằng ')

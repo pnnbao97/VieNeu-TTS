@@ -3,6 +3,7 @@ import json
 import platform
 import glob
 import re
+import logging
 from phonemizer import phonemize
 from phonemizer.backend.espeak.espeak import EspeakWrapper
 from vieneu_utils.normalize_text import VietnameseTTSNormalizer
@@ -35,7 +36,7 @@ def setup_espeak_library():
     elif system == "Darwin":
         _setup_macos_espeak()
     else:
-        print(f"Warning: Unsupported OS: {system}")
+        logger.warning(f"Warning: Unsupported OS: {system}")
         return
 
 def _setup_windows_espeak():
@@ -44,7 +45,7 @@ def _setup_windows_espeak():
     if os.path.exists(default_path):
         EspeakWrapper.set_library(default_path)
     else:
-        print("⚠️ eSpeak-NG is not installed. The system will use the built-in dictionary, but it is recommended to install eSpeak-NG for maximum performance and accuracy.")
+        logger.warning("⚠️ eSpeak-NG is not installed. The system will use the built-in dictionary, but it is recommended to install eSpeak-NG for maximum performance and accuracy.")
 
 def _setup_linux_espeak():
     """Setup eSpeak for Linux."""
@@ -62,7 +63,7 @@ def _setup_linux_espeak():
             EspeakWrapper.set_library(sorted(matches, key=len)[0])
             return
     
-    print("⚠️ eSpeak-NG is not installed on Linux. The system will use the built-in dictionary, but it is recommended to install eSpeak-NG (sudo apt install espeak-ng) for maximum performance.")
+    logger.warning("⚠️ eSpeak-NG is not installed on Linux. The system will use the built-in dictionary, but it is recommended to install eSpeak-NG (sudo apt install espeak-ng) for maximum performance.")
 
 def _setup_macos_espeak():
     """Setup eSpeak for macOS."""
@@ -80,7 +81,10 @@ def _setup_macos_espeak():
             EspeakWrapper.set_library(path)
             return
     
-    print("⚠️ eSpeak-NG is not installed on macOS. The system will use the built-in dictionary, but it is recommended to install eSpeak-NG (brew install espeak-ng) for maximum performance.")
+    logger.warning("⚠️ eSpeak-NG is not installed on macOS. The system will use the built-in dictionary, but it is recommended to install eSpeak-NG (brew install espeak-ng) for maximum performance.")
+
+# Configure logging
+logger = logging.getLogger("Vieneu.Phonemizer")
 
 # Initialize
 setup_espeak_library()
@@ -89,7 +93,7 @@ try:
     phoneme_dict = load_phoneme_dict()
     normalizer = VietnameseTTSNormalizer()
 except Exception as e:
-    print(f"Initialization error: {e}")
+    logger.error(f"Initialization error: {e}")
     # We still need normalizer to function
     normalizer = VietnameseTTSNormalizer()
     phoneme_dict = {}
@@ -110,119 +114,15 @@ def phonemize_text(text: str) -> str:
     )
 
 
-def phonemize_with_dict(text: str, phoneme_dict=phoneme_dict, skip_normalize: bool = False) -> str:
+def phonemize_with_dict(text: str, phoneme_dict: dict = phoneme_dict, skip_normalize: bool = False) -> str:
     """
     Phonemize single text with dictionary lookup and EN tag support.
+    Refactored to use phonemize_batch for consistency.
     """
-    if not skip_normalize:
-        text = normalizer.normalize(text)
-    
-    # Split by EN tags
-    parts = re.split(r'(<en>.*?</en>)', text, flags=re.IGNORECASE)
-    
-    en_texts = []
-    en_indices = []
-    vi_texts = []
-    vi_indices = []
-    vi_word_maps = []
-    
-    processed_parts = []
-    
-    for part_idx, part in enumerate(parts):
-        if re.match(r'<en>.*</en>', part, re.IGNORECASE):
-            # English part
-            en_content = re.sub(r'</?en>', '', part, flags=re.IGNORECASE).strip()
-            en_texts.append(en_content)
-            en_indices.append(part_idx)
-            processed_parts.append(None)
-        else:
-            # Vietnamese part
-            words = part.split()
-            processed_words = []
-            
-            for word_idx, word in enumerate(words):
-                match = re.match(r'^(\W*)(.*?)(\W*)$', word)
-                pre, core, suf = match.groups() if match else ("", word, "")
-                
-                if not core:
-                    processed_words.append(word)
-                elif core in phoneme_dict:
-                    processed_words.append(f"{pre}{phoneme_dict[core]}{suf}")
-                else:
-                    vi_texts.append(word)
-                    vi_indices.append(part_idx)
-                    vi_word_maps.append((part_idx, len(processed_words)))
-                    processed_words.append(None)
-            
-            processed_parts.append(processed_words)
-    
-    if en_texts:
-        try:
-            en_phonemes = phonemize(
-                en_texts,
-                language='en-us',
-                backend='espeak',
-                preserve_punctuation=True,
-                with_stress=True,
-                language_switch="remove-flags"
-            )
-            
-            if isinstance(en_phonemes, str):
-                en_phonemes = [en_phonemes]
-            
-            for idx, (part_idx, phoneme) in enumerate(zip(en_indices, en_phonemes)):
-                processed_parts[part_idx] = phoneme.strip()
-        except Exception as e:
-            print(f"Warning: Could not phonemize EN texts: {e}")
-            for part_idx in en_indices:
-                processed_parts[part_idx] = en_texts[en_indices.index(part_idx)]
-    
-    if vi_texts:
-        try:
-            vi_phonemes = phonemize(
-                vi_texts,
-                language='vi',
-                backend='espeak',
-                preserve_punctuation=True,
-                with_stress=True,
-                language_switch='remove-flags'
-            )
-            
-            if isinstance(vi_phonemes, str):
-                vi_phonemes = [vi_phonemes]
-            
-            for idx, (part_idx, word_idx) in enumerate(vi_word_maps):
-                phoneme = vi_phonemes[idx].strip()
-                
-                original_word = vi_texts[idx]
-                if original_word.lower().startswith('r'):
-                    phoneme = 'ɹ' + phoneme[1:] if len(phoneme) > 0 else phoneme
-                
-                phoneme_dict[original_word] = phoneme
-                
-                if processed_parts[part_idx] is not None:
-                    processed_parts[part_idx][word_idx] = phoneme
-        except Exception as e:
-            print(f"Warning: Could not phonemize VI texts: {e}")
-            for idx, (part_idx, word_idx) in enumerate(vi_word_maps):
-                if processed_parts[part_idx] is not None:
-                    processed_parts[part_idx][word_idx] = vi_texts[idx]
-    
-    final_parts = []
-    for part in processed_parts:
-        if isinstance(part, list):
-            final_parts.append(' '.join(str(w) for w in part if w is not None))
-        elif part is not None:
-            final_parts.append(part)
-    
-    result = ' '.join(final_parts)
-    
-    result = re.sub(r'\s+([.,!?;:])', r'\1', result)
-    
-    return result
+    return phonemize_batch([text], phoneme_dict=phoneme_dict, skip_normalize=skip_normalize)[0]
 
 
-def phonemize_batch(texts: list, phoneme_dict=phoneme_dict, skip_normalize: bool = False) -> list:
+def phonemize_batch(texts: list[str], phoneme_dict: dict = phoneme_dict, skip_normalize: bool = False) -> list[str]:
     """
     Phonemize multiple texts with optimal batching.
     
@@ -295,7 +195,7 @@ def phonemize_batch(texts: list, phoneme_dict=phoneme_dict, skip_normalize: bool
             for (text_idx, part_idx), phoneme in zip(all_en_maps, en_phonemes):
                 results[text_idx][part_idx] = phoneme.strip()
         except Exception as e:
-            print(f"Warning: Batch EN phonemization failed: {e}")
+            logger.warning(f"Warning: Batch EN phonemization failed: {e}")
     
     if all_vi_texts:
         try:
@@ -321,7 +221,7 @@ def phonemize_batch(texts: list, phoneme_dict=phoneme_dict, skip_normalize: bool
                 phoneme_dict[original_word] = phoneme
                 results[text_idx][part_idx][word_idx] = phoneme
         except Exception as e:
-            print(f"Warning: Batch VI phonemization failed: {e}")
+            logger.warning(f"Warning: Batch VI phonemization failed: {e}")
     
     final_results = []
     for processed_parts in results:

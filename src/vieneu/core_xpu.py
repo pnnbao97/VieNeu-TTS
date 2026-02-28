@@ -3,9 +3,11 @@ import gc
 import librosa
 import numpy as np
 from transformers import AutoTokenizer, AutoModelForCausalLM
+import logging
 from neucodec import NeuCodec, DistillNeuCodec
 from .core import VieNeuTTS
 
+logger = logging.getLogger("Vieneu.XPU")
 
 class XPUVieNeuTTS(VieNeuTTS):
     """
@@ -23,7 +25,7 @@ class XPUVieNeuTTS(VieNeuTTS):
     ):
         # Ensure we are strictly on XPU
         if backbone_device != "xpu":
-            print("Warning: XPUVieNeuTTS initialized with non-xpu device. Forcing 'xpu'.")
+            logger.warning("XPUVieNeuTTS initialized with non-xpu device. Forcing 'xpu'.")
             backbone_device = "xpu"
         if codec_device != "xpu":
             codec_device = "xpu"
@@ -38,7 +40,7 @@ class XPUVieNeuTTS(VieNeuTTS):
 
     def _load_backbone(self, backbone_repo, backbone_device, hf_token=None):
         """XPU (Intel Arc GPU) loading implementation using native PyTorch XPU."""
-        print(f"Loading backbone from: {backbone_repo} on {backbone_device} (XPU) ...")
+        logger.info(f"Loading backbone from: {backbone_repo} on {backbone_device} (XPU) ...")
         
         # Verify XPU is available
         if not hasattr(torch, 'xpu') or not torch.xpu.is_available():
@@ -57,11 +59,11 @@ class XPUVieNeuTTS(VieNeuTTS):
             dtype=torch.bfloat16
         ).to(device="xpu")
         
-        print(f"   ✅ Model loaded on XPU device")
+        logger.info(f"   ✅ Model loaded on XPU device")
 
     def _load_codec(self, codec_repo, codec_device):
         """XPU (Intel Arc GPU) codec loading implementation."""
-        print(f"Loading codec from: {codec_repo} on {codec_device} (XPU) ...")
+        logger.info(f"Loading codec from: {codec_repo} on {codec_device} (XPU) ...")
         
         if not hasattr(torch, 'xpu') or not torch.xpu.is_available():
             raise RuntimeError("XPU device requested but torch.xpu.is_available() returned False")
@@ -78,7 +80,7 @@ class XPUVieNeuTTS(VieNeuTTS):
             case _:
                 raise ValueError(f"Unsupported codec repository: {codec_repo}")
         
-        print(f"   ✅ Codec loaded on XPU device")
+        logger.info(f"   ✅ Codec loaded on XPU device")
 
 
 

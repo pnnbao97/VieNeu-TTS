@@ -10,7 +10,6 @@ from huggingface_hub import hf_hub_download
 from vieneu_utils.normalize_text import VietnameseTTSNormalizer
 
 # Configure logging
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger("Vieneu")
 
 class BaseVieneuTTS(ABC):

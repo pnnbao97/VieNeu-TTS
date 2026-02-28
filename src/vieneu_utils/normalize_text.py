@@ -12,7 +12,7 @@ class VietnameseTTSNormalizer:
     def __init__(self):
         pass
     
-    def normalize(self, text):
+    def normalize(self, text: str) -> str:
         """Main normalization pipeline with EN tag protection."""
         if not text:
             return ""

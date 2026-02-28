@@ -93,28 +93,25 @@ def n2w_large_number(numbers: str) -> str:
     parts = []
     for i, group in enumerate(groups):
         if group == '000':
-            # Handle special case for billions: 1.000.000.000.000
-            if i % 3 == 0 and i > 0 and i // 3 < len(suffixes) and suffixes[3] in suffixes:
-                # This is complex, usually we just skip empty groups
-                pass
+            # Handle special case for billions (tỷ)
+            if i > 0 and i % 3 == 0:
+                 # If we have a group of '000' at a 'tỷ' boundary,
+                 # we might still need to add 'tỷ' if there are higher groups
+                 pass
             continue
 
         word = n2w_hundreds(group)
         if word:
             # Suffix handling
-            suffix_idx = i % 4 # 0: none, 1: nghìn, 2: triệu, 3: tỷ
-            # If we go beyond 'tỷ', it repeats? 1.000 tỷ?
-            # Vietnamese: 1 triệu tỷ (10^15).
-            # Simplified: just repeat 'tỷ' every 3 groups or use complex logic.
-            # Here we follow the previous implementation's limit.
-            if i < len(suffixes):
-                word += suffixes[i]
-            elif i >= 4:
-                # For numbers > 10^12, we can just append "tỷ" again or more
-                # But let's keep it simple as per original
-                word += " tỷ" * (i // 3)
+            # 0: none, 1: nghìn, 2: triệu, 3: tỷ, 4: nghìn (tỷ), 5: triệu (tỷ), 6: tỷ (tỷ)...
+            suffix_idx = i % 3
+            main_suffix = suffixes[suffix_idx] if suffix_idx < len(suffixes) else ""
 
-            parts.append(word)
+            # Billion (tỷ) is special in Vietnamese, it repeats or scales
+            tỷ_count = i // 3
+
+            word_with_suffix = word + main_suffix + (" tỷ" * tỷ_count)
+            parts.append(word_with_suffix)
 
     if not parts:
         return units['0']
