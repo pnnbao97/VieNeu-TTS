@@ -64,7 +64,7 @@ def n2w_hundreds(numbers: str) -> str:
     if u_digit != '0':
         if u_digit == '1' and t_digit not in ('0', '1'):
             res.append("mốt")
-        elif u_digit == '5' and t_digit != '0':
+        elif u_digit == '5' and (t_digit != '0' or (h_digit != '0' or len(numbers) == 3)):
             res.append("lăm")
         elif u_digit == '4' and t_digit not in ('0', '1'):
             # In some regions, 4 is 'tư' in certain positions,
@@ -85,19 +85,16 @@ def n2w_large_number(numbers: str) -> str:
     numbers = numbers.lstrip('0')
 
     # Split into 3-digit groups from right to left
-    rev_numbers = numbers[::-1]
-    groups = [rev_numbers[i:i+3][::-1] for i in range(0, len(rev_numbers), 3)]
+    n_len = len(numbers)
+    groups = []
+    for i in range(n_len, 0, -3):
+        groups.append(numbers[max(0, i-3):i])
 
     suffixes = ['', ' nghìn', ' triệu', ' tỷ']
 
     parts = []
     for i, group in enumerate(groups):
         if group == '000':
-            # Handle special case for billions (tỷ)
-            if i > 0 and i % 3 == 0:
-                 # If we have a group of '000' at a 'tỷ' boundary,
-                 # we might still need to add 'tỷ' if there are higher groups
-                 pass
             continue
 
         word = n2w_hundreds(group)
@@ -110,13 +107,19 @@ def n2w_large_number(numbers: str) -> str:
             # Billion (tỷ) is special in Vietnamese, it repeats or scales
             tỷ_count = i // 3
 
-            word_with_suffix = word + main_suffix + (" tỷ" * tỷ_count)
+            if main_suffix or tỷ_count > 0:
+                full_suffix = main_suffix + (" tỷ" * tỷ_count)
+                word_with_suffix = f"{word}{full_suffix}"
+            else:
+                word_with_suffix = word
             parts.append(word_with_suffix)
 
     if not parts:
         return units['0']
 
-    return ' '.join(parts[::-1]).strip()
+    # Reverse parts and join
+    parts.reverse()
+    return ' '.join(parts).strip()
 
 def n2w(number: str) -> str:
     """Main entry point for number to word conversion."""

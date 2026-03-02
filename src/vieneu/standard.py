@@ -49,7 +49,7 @@ class VieNeuTTS(BaseVieneuTTS):
         self._load_voices(backbone_repo, hf_token)
         self._warmup_model()
 
-    def _warmup_model(self):
+    def _warmup_model(self) -> None:
         """Warm up the model to initialize CUDA/XPU kernels and KV cache."""
         try:
             logger.info("🔥 Warming up standard model...")
@@ -62,7 +62,7 @@ class VieNeuTTS(BaseVieneuTTS):
         except Exception as e:
             logger.warning(f"   ⚠️ Warmup failed: {e}")
 
-    def close(self):
+    def close(self) -> None:
         """Explicitly release model resources."""
         try:
             if self.backbone is not None:
@@ -81,7 +81,7 @@ class VieNeuTTS(BaseVieneuTTS):
         except Exception as e:
             logger.error(f"Error during VieNeuTTS closure: {e}")
 
-    def _load_backbone(self, backbone_repo: str, backbone_device: str, hf_token: Optional[str] = None):
+    def _load_backbone(self, backbone_repo: str, backbone_device: str, hf_token: Optional[str] = None) -> None:
         if backbone_device == "mps" and not torch.backends.mps.is_available():
             logger.warning("MPS not available, falling back to CPU")
             backbone_device = "cpu"
@@ -121,7 +121,7 @@ class VieNeuTTS(BaseVieneuTTS):
                 except Exception as e:
                     logger.warning(f"Failed to compile backbone: {e}")
 
-    def _load_codec(self, codec_repo: str, codec_device: str):
+    def _load_codec(self, codec_repo: str, codec_device: str) -> None:
         if codec_device == "mps" and not torch.backends.mps.is_available():
             logger.warning("Warning: MPS not available for codec, falling back to CPU")
             codec_device = "cpu"
@@ -149,7 +149,7 @@ class VieNeuTTS(BaseVieneuTTS):
         if not self._is_onnx_codec:
             self.codec.eval().to(codec_device)
 
-    def load_lora_adapter(self, lora_repo_id: str, hf_token: Optional[str] = None):
+    def load_lora_adapter(self, lora_repo_id: str, hf_token: Optional[str] = None) -> bool:
         if self._is_quantized_model:
             raise NotImplementedError("LoRA not supported for GGUF quantized models. Use PyTorch backbone.")
 
@@ -177,7 +177,7 @@ class VieNeuTTS(BaseVieneuTTS):
         except Exception as e:
             raise RuntimeError(f"Failed to load LoRA adapter: {str(e)}") from e
 
-    def unload_lora_adapter(self):
+    def unload_lora_adapter(self) -> bool:
         if not getattr(self, '_lora_loaded', False):
             return False
 

@@ -9,7 +9,7 @@ class VietnameseTTSNormalizer:
     All core logic is implemented in the cleaner module.
     """
     
-    def __init__(self):
+    def __init__(self) -> None:
         pass
     
     def normalize(self, text: str) -> str:

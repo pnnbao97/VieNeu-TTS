@@ -15,7 +15,7 @@ PHONEME_DICT_PATH = os.getenv(
     os.path.join(os.path.dirname(__file__), "phoneme_dict.json")
 )
 
-def load_phoneme_dict(path=PHONEME_DICT_PATH):
+def load_phoneme_dict(path: str = PHONEME_DICT_PATH) -> dict:
     """Load phoneme dictionary from JSON file."""
     try:
         with open(path, "r", encoding="utf-8") as f:
@@ -26,7 +26,7 @@ def load_phoneme_dict(path=PHONEME_DICT_PATH):
             "Please create it or set PHONEME_DICT_PATH environment variable."
         )
 
-def setup_espeak_library():
+def setup_espeak_library() -> None:
     """Configure eSpeak library path based on operating system."""
     system = platform.system()
     
@@ -40,7 +40,7 @@ def setup_espeak_library():
         logger.warning(f"Warning: Unsupported OS: {system}")
         return
 
-def _setup_windows_espeak():
+def _setup_windows_espeak() -> None:
     """Setup eSpeak for Windows."""
     default_path = r"C:\Program Files\eSpeak NG\libespeak-ng.dll"
     if os.path.exists(default_path):
@@ -48,7 +48,7 @@ def _setup_windows_espeak():
     else:
         logger.warning("⚠️ eSpeak-NG is not installed. The system will use the built-in dictionary, but it is recommended to install eSpeak-NG for maximum performance and accuracy.")
 
-def _setup_linux_espeak():
+def _setup_linux_espeak() -> None:
     """Setup eSpeak for Linux."""
     search_patterns = [
         "/usr/lib/x86_64-linux-gnu/libespeak-ng.so*",
@@ -66,7 +66,7 @@ def _setup_linux_espeak():
     
     logger.warning("⚠️ eSpeak-NG is not installed on Linux. The system will use the built-in dictionary, but it is recommended to install eSpeak-NG (sudo apt install espeak-ng) for maximum performance.")
 
-def _setup_macos_espeak():
+def _setup_macos_espeak() -> None:
     """Setup eSpeak for macOS."""
     espeak_lib = os.environ.get('PHONEMIZER_ESPEAK_LIBRARY')
     

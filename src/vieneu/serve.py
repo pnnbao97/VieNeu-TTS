@@ -4,26 +4,31 @@ import subprocess
 import sys
 import time
 import requests
+import logging
 
-def check_command(cmd):
+# Configure logging
+logging.basicConfig(level=logging.INFO, format='%(message)s')
+logger = logging.getLogger("Vieneu.Serve")
+
+def check_command(cmd: str) -> bool:
     try:
         subprocess.run([cmd, "--version"], capture_output=True, check=False)
         return True
     except FileNotFoundError:
         return False
 
-def get_public_ip():
+def get_public_ip() -> str:
     try:
         return requests.get("https://api.ipify.org").text
     except Exception:
         return "your-server-ip"
 
-def run_server(args):
+def run_server(args: argparse.Namespace) -> None:
     """
     Starts the LMDeploy API server.
     """
-    print(f"🚀 Starting VieNeu-TTS Remote Server...")
-    print(f"📦 Model: {args.model}")
+    logger.info(f"🚀 Starting VieNeu-TTS Remote Server...")
+    logger.info(f"📦 Model: {args.model}")
     
     cmd = [
         "lmdeploy", "serve", "api_server",
@@ -38,13 +43,13 @@ def run_server(args):
     if args.quant_policy:
         cmd.extend(["--quant-policy", str(args.quant_policy)])
 
-    print(f"🛠️ Command: {' '.join(cmd)}")
+    logger.info(f"🛠️ Command: {' '.join(cmd)}")
     
     # Start the server in a subprocess
     server_process = subprocess.Popen(cmd)
     
     # Wait for server to start
-    print(f"⏳ Waiting for server to initialize on port {args.port}...")
+    logger.info(f"⏳ Waiting for server to initialize on port {args.port}...")
     
     # Optional Tunneling
     tunnel_process = None
@@ -52,7 +57,7 @@ def run_server(args):
     
     if args.tunnel:
         if check_command("bore"):
-            print("🌐 Starting tunnel via 'bore'...")
+            logger.info("🌐 Starting tunnel via 'bore'...")
             tunnel_cmd = ["bore", "local", str(args.port), "--to", "bore.pub"]
             tunnel_process = subprocess.Popen(tunnel_cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
             
@@ -62,30 +67,30 @@ def run_server(args):
                 line = tunnel_process.stdout.readline()
                 if "listening at" in line:
                     public_url = line.split("listening at")[-1].strip()
-                    print(f"✅ Public URL: http://{public_url}")
+                    logger.info(f"✅ Public URL: http://{public_url}")
                     break
         else:
-            print("⚠️ 'bore' not found. Please install it to use --tunnel (https://github.com/ekzhang/bore)")
-            print(f"📍 Using local address: http://{get_public_ip()}:{args.port}")
+            logger.warning("⚠️ 'bore' not found. Please install it to use --tunnel (https://github.com/ekzhang/bore)")
+            logger.info(f"📍 Using local address: http://{get_public_ip()}:{args.port}")
     else:
-        print(f"✅ Server running locally at: http://0.0.0.0:{args.port}")
-        print(f"📍 Public access (if enabled): http://{get_public_ip()}:{args.port}")
+        logger.info(f"✅ Server running locally at: http://0.0.0.0:{args.port}")
+        logger.info(f"📍 Public access (if enabled): http://{get_public_ip()}:{args.port}")
 
-    print("\n💡 To use this server in your SDK:")
+    logger.info("\n💡 To use this server in your SDK:")
     sdk_url = f"http://{public_url}" if public_url else f"http://{get_public_ip()}:{args.port}"
-    print(f"   from vieneu import Vieneu")
-    print(f"   tts = Vieneu(mode='remote', api_base='{sdk_url}/v1', model_name='{args.model_name}')")
-    print("")
+    logger.info(f"   from vieneu import Vieneu")
+    logger.info(f"   tts = Vieneu(mode='remote', api_base='{sdk_url}/v1', model_name='{args.model_name}')")
+    logger.info("")
 
     try:
         server_process.wait()
     except KeyboardInterrupt:
-        print("\n🛑 Stopping server...")
+        logger.info("\n🛑 Stopping server...")
         server_process.terminate()
         if tunnel_process:
             tunnel_process.terminate()
 
-def main():
+def main() -> None:
     parser = argparse.ArgumentParser(description="VieNeu-TTS Remote Server CLI")
     parser.add_argument("--model", type=str, default="pnnbao-ump/VieNeu-TTS", help="HuggingFace model ID or local path")
     parser.add_argument("--model-name", type=str, default="pnnbao-ump/VieNeu-TTS", help="Model name for API mapping")
@@ -103,8 +108,8 @@ def main():
     
     # Check if lmdeploy is installed
     if not check_command("lmdeploy"):
-        print("❌ 'lmdeploy' not found!")
-        print("   Please install it using: pip install vieneu[gpu]")
+        logger.error("❌ 'lmdeploy' not found!")
+        logger.error("   Please install it using: pip install vieneu[gpu]")
         sys.exit(1)
         
     run_server(args)

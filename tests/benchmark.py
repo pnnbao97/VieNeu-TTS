@@ -20,7 +20,8 @@ def benchmark_phonemization(n_iterations=10):
     text = "Xin chào Việt Nam, đây là một ví dụ về chuyển đổi văn bản thành âm thanh."
 
     # 1. First call (uncached)
-    phonemize_with_dict.cache_clear()
+    from vieneu_utils.phonemize_text import _phonemize_with_dict_cached
+    _phonemize_with_dict_cached.cache_clear()
     start = time.time()
     _ = phonemize_with_dict(text)
     end = time.time()

@@ -33,7 +33,7 @@ class BaseVieneuTTS(ABC):
         self.watermarker = None
         self._init_watermarker()
 
-    def _init_watermarker(self):
+    def _init_watermarker(self) -> None:
         """Initialize optional audio watermarker."""
         try:
             import perth
@@ -42,7 +42,7 @@ class BaseVieneuTTS(ABC):
         except (ImportError, AttributeError):
             self.watermarker = None
 
-    def _load_voices(self, backbone_repo: Optional[str], hf_token: Optional[str] = None, clear_existing: bool = False):
+    def _load_voices(self, backbone_repo: Optional[str], hf_token: Optional[str] = None, clear_existing: bool = False) -> None:
         """Unified voice loading for Local and Remote paths."""
         if not backbone_repo:
             return
@@ -73,11 +73,19 @@ class BaseVieneuTTS(ABC):
                 logger.warning(f"Could not load voices from repo '{backbone_repo}': {e}")
                 logger.warning(f"Falling back to Custom Voice Cloning mode.")
 
-    def _load_voices_from_file(self, file_path: Path, clear_existing: bool = False):
+    def _load_voices_from_file(self, file_path: Path, clear_existing: bool = False) -> None:
         """Load voices from a local JSON file."""
         try:
+            if not file_path.exists():
+                logger.error(f"Voice file not found: {file_path}")
+                return
+
             with open(file_path, 'r', encoding='utf-8') as f:
-                data = json.load(f)
+                try:
+                    data = json.load(f)
+                except json.JSONDecodeError as e:
+                    logger.error(f"Invalid JSON in voice file {file_path}: {e}")
+                    return
 
             if "presets" in data:
                 if clear_existing:
@@ -95,7 +103,7 @@ class BaseVieneuTTS(ABC):
         except Exception as e:
             logger.error(f"Failed to load voices from {file_path}: {e}")
 
-    def _load_voices_from_repo(self, repo_id: str, hf_token: Optional[str] = None):
+    def _load_voices_from_repo(self, repo_id: str, hf_token: Optional[str] = None) -> None:
         """Download and load voices.json from a HuggingFace repo."""
         voices_file = None
         try:
@@ -171,7 +179,7 @@ class BaseVieneuTTS(ABC):
             self._ref_phoneme_cache[ref_text] = phonemize_with_dict(ref_text)
         return self._ref_phoneme_cache[ref_text]
 
-    def save(self, audio: np.ndarray, output_path: Union[str, Path]):
+    def save(self, audio: np.ndarray, output_path: Union[str, Path]) -> None:
         """Save audio waveform to a file."""
         import soundfile as sf
         sf.write(str(output_path), audio, self.sample_rate)
@@ -257,18 +265,18 @@ class BaseVieneuTTS(ABC):
         return wav
 
     @abstractmethod
-    def infer(self, text: str, **kwargs) -> np.ndarray:
+    def infer(self, text: str, **kwargs: Any) -> np.ndarray:
         """Main inference method."""
         pass
 
-    def close(self):
+    def close(self) -> None:
         """Release resources."""
         pass
 
-    def __enter__(self):
+    def __enter__(self) -> 'BaseVieneuTTS':
         return self
 
-    def __exit__(self, exc_type, exc_val, exc_tb):
+    def __exit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -> None:
         self.close()
 
     def __del__(self):
