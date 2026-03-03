@@ -10,21 +10,25 @@ from phonemizer.backend.espeak.espeak import EspeakWrapper
 from vieneu_utils.normalize_text import VietnameseTTSNormalizer
 
 # Configuration
-PHONEME_DICT_PATH = os.getenv(
-    'PHONEME_DICT_PATH',
-    os.path.join(os.path.dirname(__file__), "phoneme_dict.json")
+DICT_DIR = os.getenv(
+    'PHONEME_DICT_DIR',
+    os.path.join(os.path.dirname(__file__), "phone_dict")
 )
 
-def load_phoneme_dict(path: str = PHONEME_DICT_PATH) -> dict:
-    """Load phoneme dictionary from JSON file."""
+MERGED_DICT_PATH = os.path.join(DICT_DIR, "phone_dict_merged.json")
+COMMON_DICT_PATH = os.path.join(DICT_DIR, "phone_dict_common.json")
+
+# Configure logging
+logger = logging.getLogger("Vieneu.Phonemizer")
+
+def load_json(path: str) -> dict:
+    """Load JSON file safely."""
     try:
         with open(path, "r", encoding="utf-8") as f:
             return json.load(f)
     except FileNotFoundError:
-        raise FileNotFoundError(
-            f"Phoneme dictionary not found at {path}. "
-            "Please create it or set PHONEME_DICT_PATH environment variable."
-        )
+        logger.warning(f"Warning: Dictionary not found at {path}")
+        return {}
 
 def setup_espeak_library() -> None:
     """Configure eSpeak library path based on operating system."""
@@ -84,190 +88,173 @@ def _setup_macos_espeak() -> None:
     
     logger.warning("\033[91;1m⚠️ eSpeak-NG is not installed on macOS. The system will use the built-in dictionary, but it is recommended to install eSpeak-NG (brew install espeak-ng) for maximum performance.\033[0m")
 
-# Configure logging
-logger = logging.getLogger("Vieneu.Phonemizer")
-
 # Initialize
 setup_espeak_library()
+phone_dict_merged = load_json(MERGED_DICT_PATH)
+phone_dict_common = load_json(COMMON_DICT_PATH)
+normalizer = VietnameseTTSNormalizer()
 
-try:
-    phoneme_dict = load_phoneme_dict()
-    normalizer = VietnameseTTSNormalizer()
-except Exception as e:
-    logger.error(f"Initialization error: {e}")
-    # We still need normalizer to function
-    normalizer = VietnameseTTSNormalizer()
-    phoneme_dict = {}
+def espeak_fallback_batch(texts: list[str], language: str = 'en-us') -> list[str]:
+    """Batch fallback to espeak-ng for unknown segments."""
+    if not texts: return []
+    try:
+        ph = phonemize(
+            texts,
+            language=language,
+            backend='espeak',
+            preserve_punctuation=True,
+            with_stress=True,
+            language_switch="remove-flags"
+        )
+        if isinstance(ph, str): ph = [ph]
+        return [p.strip() for p in ph]
+    except Exception as e:
+        logger.warning(f"eSpeak fallback ({language}) failed: {e}")
+        return texts
 
-def phonemize_text(text: str) -> str:
+def propagate_language(tokens):
     """
-    Convert text to phonemes (simple version without dict, without EN tag).
-    Kept for backward compatibility.
+    Propagate language labels for 'common' words based on the closest anchor.
+    Sentence boundaries (strong punctuation) block propagation.
     """
-    text = normalizer.normalize(text)
-    return phonemize(
-        text,
-        language="vi",
-        backend="espeak",
-        preserve_punctuation=True,
-        with_stress=True,
-        language_switch="remove-flags"
-    )
+    STOP_PUNCT = {'.', '!', '?', ';', ':', '(', ')', '[', ']', '{', '}'}
+    
+    # 1. Identify islands of common words
+    islands = []
+    current_island = []
+    for i, token in enumerate(tokens):
+        if token['lang'] == 'common':
+            current_island.append(i)
+        else:
+            # Any non-common token (vi, en, or punct) breaks the island
+            if current_island:
+                islands.append(current_island)
+                current_island = []
+    if current_island:
+        islands.append(current_island)
 
-
-def phonemize_with_dict(text: str, phoneme_dict: dict = None, skip_normalize: bool = False) -> str:
-    """
-    Phonemize single text with dictionary lookup and EN tag support.
-    Uses LRU cache when the default dictionary is used.
-    """
-    if phoneme_dict is None or phoneme_dict is globals().get('phoneme_dict'):
-        return _phonemize_with_dict_cached(text, skip_normalize)
-
-    return phonemize_batch([text], phoneme_dict=phoneme_dict, skip_normalize=skip_normalize)[0]
-
+    # 2. For each island, find the closest valid anchor
+    for island in islands:
+        left_anchor, left_dist = None, 999
+        right_anchor, right_dist = None, 999
+        
+        # Search left from the start of island
+        for l in range(island[0] - 1, -1, -1):
+            if tokens[l]['content'] in STOP_PUNCT: break
+            if tokens[l]['lang'] in ('vi', 'en'):
+                left_anchor = tokens[l]['lang']
+                left_dist = island[0] - l
+                break
+        
+        # Search right from the end of island
+        for r in range(island[-1] + 1, len(tokens)):
+            if tokens[r]['content'] in STOP_PUNCT: break
+            if tokens[r]['lang'] in ('vi', 'en'):
+                right_anchor = tokens[r]['lang']
+                right_dist = r - island[-1]
+                break
+        
+        # Decision logic: closest wins, tie-break to RIGHT for better switching
+        final_lang = 'vi' # Default
+        if left_anchor and right_anchor:
+            # If distance is equal, we often prefer the language that follows (the target phrase)
+            final_lang = right_anchor if right_dist <= left_dist else left_anchor
+        elif left_anchor:
+            final_lang = left_anchor
+        elif right_anchor:
+            final_lang = right_anchor
+            
+        for idx in island:
+            tokens[idx]['lang'] = final_lang
 
 @functools.lru_cache(maxsize=1024)
 def _phonemize_with_dict_cached(text: str, skip_normalize: bool = False) -> str:
-    """Internal cached version of phonemization using the global dictionary."""
-    return phonemize_batch([text], skip_normalize=skip_normalize)[0]
+    return phonemize_batch([text], skip_normalize=skip_normalize, phoneme_dict=None)[0]
 
+def phonemize_batch(texts: list[str], skip_normalize: bool = False, phoneme_dict: dict = None, **kwargs) -> list[str]:
+    """Phonemize multiple texts with bilingual support and batch deduplication."""
+    if not texts: return []
+    if not skip_normalize: texts = [normalizer.normalize(t) for t in texts]
 
-def phonemize_batch(texts: list[str], phoneme_dict: dict = phoneme_dict, skip_normalize: bool = False) -> list[str]:
-    """
-    Phonemize multiple texts with optimal batching and deduplication.
-    
-    Args:
-        texts: List of text strings to phonemize
-        phoneme_dict: Phoneme dictionary for lookup
-        skip_normalize: If True, skip normalization (use when text is pre-normalized)
-    
-    Returns:
-        List of phonemized texts
-    """
-    if not texts:
-        return []
+    use_system = (phoneme_dict is None)
+    custom = phoneme_dict if phoneme_dict else {}
 
-    if skip_normalize:
-        normalized_texts = texts
-    else:
-        normalized_texts = [normalizer.normalize(text) for text in texts]
-    
-    # Using dict for deduplication while preserving order (in Python 3.7+)
-    unique_en_segments = {}
-    unique_vi_cores = {}
-    
-    # Structure to hold intermediate results
-    # Each entry: [ [parts], [parts] ... ] where parts can be a string (EN) or list (VI words)
+    batch_token_lists = []
+    global_unknown = set()
+
+    for text in texts:
+        matches = re.finditer(r'(<en>.*?</en>)|(\w+)|([^\w\s])', text, re.I | re.U)
+        sent_tokens = []
+        for m in matches:
+            en_tag, word, punct = m.groups()
+            if en_tag:
+                content = re.sub(r'</?en>', '', en_tag, flags=re.I).strip()
+                for st in re.finditer(r'(\w+)|([^\w\s])', content, re.U):
+                    sw, sp = st.groups()
+                    if sp: sent_tokens.append({'lang': 'punct', 'content': sp, 'phone': sp})
+                    else:
+                        lw = sw.lower()
+                        if lw in custom: sent_tokens.append({'lang': 'en', 'content': sw, 'phone': custom[lw]})
+                        elif use_system and lw in phone_dict_common: sent_tokens.append({'lang': 'en', 'content': sw, 'phone': phone_dict_common[lw]})
+                        elif use_system and lw in phone_dict_merged and phone_dict_merged[lw].startswith('<en>'):
+                            sent_tokens.append({'lang': 'en', 'content': sw, 'phone': phone_dict_merged[lw]})
+                        else:
+                            sent_tokens.append({'lang': 'en', 'content': sw, 'phone': None})
+                            global_unknown.add(sw)
+            elif punct: sent_tokens.append({'lang': 'punct', 'content': punct, 'phone': punct})
+            elif word:
+                lw = word.lower()
+                if lw in custom: sent_tokens.append({'lang': 'en', 'content': word, 'phone': custom[lw]})
+                elif use_system and lw in phone_dict_merged:
+                    val = phone_dict_merged[lw]
+                    sent_tokens.append({'lang': 'en' if val.startswith('<en>') else 'vi', 'content': word, 'phone': val})
+                elif use_system and lw in phone_dict_common:
+                    sent_tokens.append({'lang': 'common', 'content': word, 'phone': phone_dict_common[lw]})
+                else:
+                    sent_tokens.append({'lang': 'en', 'content': word, 'phone': None})
+                    global_unknown.add(word)
+        batch_token_lists.append(sent_tokens)
+
+    if global_unknown:
+        u_words = sorted(list(global_unknown))
+        res_phones = espeak_fallback_batch(u_words, 'en-us')
+        lut = {w: f"<en>{p}" for w, p in zip(u_words, res_phones)}
+        for sent in batch_token_lists:
+            for t in sent:
+                if t['phone'] is None and t['content'] in lut:
+                    t['phone'] = lut[t['content']]
+
     results = []
-    
-    for text_idx, text in enumerate(normalized_texts):
-        # Split by <en> tags
-        parts = re.split(r'(<en>.*?</en>)', text, flags=re.IGNORECASE)
-        processed_parts = []
-        
-        for part_idx, part in enumerate(parts):
-            if not part:
-                processed_parts.append("")
-                continue
-
-            if re.match(r'<en>.*</en>', part, re.IGNORECASE):
-                en_content = re.sub(r'</?en>', '', part, flags=re.IGNORECASE).strip()
-                if en_content not in unique_en_segments:
-                    unique_en_segments[en_content] = None
-                processed_parts.append({'type': 'en', 'content': en_content})
+    for sent in batch_token_lists:
+        propagate_language(sent)
+        sent_phones = []
+        for t in sent:
+            if t['lang'] == 'punct':
+                sent_phones.append(t['phone'])
             else:
-                words = part.split()
-                processed_words = []
-                
-                for word in words:
-                    match = re.match(r'^(\W*)(.*?)(\W*)$', word)
-                    pre, core, suf = match.groups() if match else ("", word, "")
-                    
-                    if not core:
-                        processed_words.append({'type': 'fixed', 'content': word})
-                    elif core in phoneme_dict:
-                        processed_words.append({'type': 'fixed', 'content': f"{pre}{phoneme_dict[core]}{suf}"})
-                    else:
-                        if core not in unique_vi_cores:
-                            unique_vi_cores[core] = None
-                        processed_words.append({'type': 'vi_core', 'pre': pre, 'core': core, 'suf': suf})
-                
-                processed_parts.append({'type': 'vi_words', 'content': processed_words})
-        
-        results.append(processed_parts)
-    
-    # 1. Phonemize unique EN segments in one batch
-    if unique_en_segments:
-        en_list = list(unique_en_segments.keys())
-        try:
-            en_phonemes = phonemize(
-                en_list,
-                language='en-us',
-                backend='espeak',
-                preserve_punctuation=True,
-                with_stress=True,
-                language_switch="remove-flags"
-            )
-            if isinstance(en_phonemes, str):
-                en_phonemes = [en_phonemes]
-            
-            for original, phoneme in zip(en_list, en_phonemes):
-                unique_en_segments[original] = phoneme.strip()
-        except Exception as e:
-            logger.warning(f"Warning: Batch EN phonemization failed: {e}")
-            for original in en_list:
-                unique_en_segments[original] = original
+                p = t['phone']
+                if isinstance(p, dict):
+                    p = p['en'] if t['lang'] == 'en' else p['vi']
+                if p is None: p = t['content']
+                p = p.replace('<en>', '')
+                # North VI 'r' adjustment removed as requested
+                # if t['lang'] == 'vi' and t['content'].lower().startswith('r') and not p.startswith('ɹ'):
+                #     p = 'ɹ' + p[1:]
+                sent_phones.append(p)
+        txt = " ".join(sent_phones)
+        txt = re.sub(r'\s+([.,!?;:])', r'\1', txt)
+        results.append(txt.strip())
+    return results
 
-    # 2. Phonemize unique VI cores in one batch
-    if unique_vi_cores:
-        vi_list = list(unique_vi_cores.keys())
-        try:
-            vi_phonemes = phonemize(
-                vi_list,
-                language='vi',
-                backend='espeak',
-                preserve_punctuation=True,
-                with_stress=True,
-                language_switch='remove-flags'
-            )
-            if isinstance(vi_phonemes, str):
-                vi_phonemes = [vi_phonemes]
-            
-            for original, phoneme in zip(vi_list, vi_phonemes):
-                ph = phoneme.strip()
-                # Special rule for 'r' starting words
-                if original.lower().startswith('r') and ph:
-                    ph = 'ɹ' + ph[1:]
-                
-                unique_vi_cores[original] = ph
-                phoneme_dict[original] = ph # Cache for future
-        except Exception as e:
-            logger.warning(f"Warning: Batch VI phonemization failed: {e}")
-            for original in vi_list:
-                unique_vi_cores[original] = original
+def phonemize_text(text: str) -> str:
+    return phonemize_batch([text])[0]
 
-    # 3. Assemble final results
-    final_results = []
-    for processed_parts in results:
-        text_parts = []
-        for part in processed_parts:
-            if not part: continue
+def phonemize_with_dict(text: str, phoneme_dict: dict = None, skip_normalize: bool = False) -> str:
+    if phoneme_dict is not None:
+        return phonemize_batch([text], skip_normalize=skip_normalize, phoneme_dict=phoneme_dict)[0]
+    return _phonemize_with_dict_cached(text, skip_normalize=skip_normalize)
 
-            if part['type'] == 'en':
-                text_parts.append(unique_en_segments.get(part['content'], part['content']))
-            elif part['type'] == 'vi_words':
-                word_list = []
-                for w in part['content']:
-                    if w['type'] == 'fixed':
-                        word_list.append(w['content'])
-                    else:
-                        ph = unique_vi_cores.get(w['core'], w['core'])
-                        word_list.append(f"{w['pre']}{ph}{w['suf']}")
-                text_parts.append(" ".join(word_list))
-        
-        full_text = " ".join(text_parts)
-        # Cleanup spaces before punctuation
-        full_text = re.sub(r'\s+([.,!?;:])', r'\1', full_text)
-        final_results.append(full_text)
-    
-    return final_results
+if __name__ == "__main__":
+    import sys
+    test_text = " ".join(sys.argv[1:]) if len(sys.argv) > 1 else "tôi muốn to long go to the market"
+    print(f"Output: {phonemize_text(test_text)}")
