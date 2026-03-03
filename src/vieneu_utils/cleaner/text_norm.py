@@ -94,6 +94,39 @@ RE_CLEAN_OTHERS = re.compile(r'[^\w\sàáảãạăắằẳẵặâấầẩẫ
 _MAGNITUDE_P = r"\s*(tỷ|triệu|nghìn|ngàn)?\s*"
 _NUMERIC_P = r"((?:\d+[.,])*\d+)"
 
+# Pre-compiled regex for compound units
+RE_COMPOUND_UNIT = re.compile(rf"{_NUMERIC_P}?\s*\b([a-zμµ²³°]+)/([a-zμµ²³°0-9]+)\b", re.IGNORECASE)
+
+# Pre-compiled currency patterns
+RE_CURRENCY_PREFIX_USD = re.compile(rf"\$\s*{_NUMERIC_P}{_MAGNITUDE_P}", re.IGNORECASE)
+RE_CURRENCY_SUFFIX_USD = re.compile(rf"{_NUMERIC_P}{_MAGNITUDE_P}\$", re.IGNORECASE)
+RE_PERCENTAGE = re.compile(rf"{_NUMERIC_P}\s*%", re.IGNORECASE)
+
+# Pre-compile measurement and currency unit patterns
+_MEASUREMENT_PATTERNS = []
+for unit, full in sorted(_measurement_key_vi.items(), key=lambda x: len(x[0]), reverse=True):
+    pattern = re.compile(rf"\b{_NUMERIC_P}{_MAGNITUDE_P}{unit}\b", re.IGNORECASE)
+
+    standalone_pattern = None
+    safe_standalone = [
+        "km", "cm", "mm", "kg", "mg",
+        "m2", "km2", "usd", "vnd",
+        "mhz", "khz", "ghz", "hz"
+    ]
+    if unit.lower() in safe_standalone:
+        standalone_pattern = re.compile(rf"(?<![\d.,])\b{unit}\b", re.IGNORECASE)
+
+    _MEASUREMENT_PATTERNS.append((pattern, standalone_pattern, full))
+
+_CURRENCY_PATTERNS = []
+for unit, full in _currency_key.items():
+    if unit == "%": continue
+    pattern = re.compile(rf"\b{_NUMERIC_P}{_MAGNITUDE_P}{unit}\b", re.IGNORECASE)
+    _CURRENCY_PATTERNS.append((pattern, full))
+
+# Pre-compile acronyms exceptions
+_ACRONYMS_EXCEPTIONS_RE = [(re.compile(rf"\b{re.escape(k)}\b"), v) for k, v in _acronyms_exceptions_vi.items()]
+
 def _expand_number_with_sep(num_str):
     if not num_str: return ""
     if "," in num_str:
@@ -120,20 +153,12 @@ def expand_measurement(text):
         expanded_num = _expand_number_with_sep(num)
         return f"{expanded_num} {mag} {full}".replace("  ", " ").strip()
     
-    for unit, full in sorted(_measurement_key_vi.items(), key=lambda x: len(x[0]), reverse=True):
+    for pattern, standalone_pattern, full in _MEASUREMENT_PATTERNS:
         # Case with number
-        pattern = re.compile(rf"\b{_NUMERIC_P}{_MAGNITUDE_P}{unit}\b", re.IGNORECASE)
         text = pattern.sub(lambda m, f=full: _repl(m, f), text)
         
         # Standalone units
-        safe_standalone = [
-            "km", "cm", "mm", "kg", "mg",
-            "m2", "km2", "usd", "vnd",
-            "mhz", "khz", "ghz", "hz"
-        ]
-        if unit.lower() in safe_standalone:
-            # First try with standard word boundaries
-            standalone_pattern = re.compile(rf"(?<![\d.,])\b{unit}\b", re.IGNORECASE)
+        if standalone_pattern:
             text = standalone_pattern.sub(f" {full} ", text)
     return text
 
@@ -144,13 +169,11 @@ def expand_currency(text):
         expanded_num = _expand_number_with_sep(num)
         return f"{expanded_num} {mag} {full}".replace("  ", " ").strip()
         
-    text = re.sub(rf"\$\s*{_NUMERIC_P}{_MAGNITUDE_P}", lambda m: _repl(m, "đô la Mỹ"), text)
-    text = re.sub(rf"{_NUMERIC_P}{_MAGNITUDE_P}\$", lambda m: _repl(m, "đô la Mỹ"), text)
-    text = re.sub(rf"{_NUMERIC_P}\s*%", lambda m: f"{_expand_number_with_sep(m.group(1))} phần trăm", text)
+    text = RE_CURRENCY_PREFIX_USD.sub(lambda m: _repl(m, "đô la Mỹ"), text)
+    text = RE_CURRENCY_SUFFIX_USD.sub(lambda m: _repl(m, "đô la Mỹ"), text)
+    text = RE_PERCENTAGE.sub(lambda m: f"{_expand_number_with_sep(m.group(1))} phần trăm", text)
     
-    for unit, full in _currency_key.items():
-        if unit == "%": continue
-        pattern = re.compile(rf"\b{_NUMERIC_P}{_MAGNITUDE_P}{unit}\b", re.IGNORECASE)
+    for pattern, full in _CURRENCY_PATTERNS:
         text = pattern.sub(lambda m, f=full: _repl(m, f), text)
     return text
 
@@ -167,8 +190,7 @@ def expand_compound_units(text):
             res = f"{num} {res}"
         return res
 
-    pattern = re.compile(rf"{_NUMERIC_P}?\s*\b([a-zμµ²³°]+)/([a-zμµ²³°0-9]+)\b", re.IGNORECASE)
-    text = pattern.sub(_repl_compound, text)
+    text = RE_COMPOUND_UNIT.sub(_repl_compound, text)
     return text
 
 def expand_roman(match):
@@ -307,8 +329,8 @@ def normalize_acronyms(text):
     return "".join(processed)
 
 def normalize_others(text):
-    for k, v in _acronyms_exceptions_vi.items():
-        text = re.sub(rf"\b{k}\b", v, text)
+    for pattern, v in _ACRONYMS_EXCEPTIONS_RE:
+        text = pattern.sub(v, text)
     
     text = normalize_urls(text)
     text = normalize_emails(text)

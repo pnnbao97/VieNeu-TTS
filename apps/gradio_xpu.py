@@ -755,6 +755,7 @@ with gr.Blocks(theme=theme, css=css, title="VieNeu-TTS (XPU)", head=head_html) a
                     
                     with gr.TabItem("🦜 Voice Cloning", id="custom_mode") as tab_custom:
                         custom_audio = gr.Audio(label="Audio giọng mẫu (3-5 giây) (.wav)", type="filepath")
+                        cloning_warning_msg = gr.Markdown(visible=False, elem_id="cloning-warning")
                         custom_text = gr.Textbox(label="Nội dung audio mẫu - vui lòng gõ đúng nội dung của audio mẫu - kể cả dấu câu vì model rất nhạy cảm với dấu câu (.,?!)")
                         gr.Examples(
                             examples=[
@@ -844,6 +845,22 @@ with gr.Blocks(theme=theme, css=css, title="VieNeu-TTS (XPU)", head=head_html) a
         tab_preset.select(lambda: "preset_mode", outputs=current_mode_state)
         tab_custom.select(lambda: "custom_mode", outputs=current_mode_state)
         
+        def validate_audio_duration(audio_path):
+            if not audio_path:
+                return gr.update(visible=False)
+            try:
+                info = sf.info(audio_path)
+                if info.duration > 5.1:
+                    return gr.update(
+                        value=f"⚠️ **Cảnh báo:** Audio mẫu hiện tại dài {info.duration:.1f} giây. Để có kết quả clone giọng tối ưu, bạn nên sử dụng đoạn audio có độ dài lý tưởng từ **3 đến 5 giây**.",
+                        visible=True
+                    )
+            except Exception:
+                pass
+            return gr.update(visible=False)
+
+        custom_audio.change(validate_audio_duration, inputs=[custom_audio], outputs=[cloning_warning_msg])
+
         def on_backbone_change(choice):
             is_custom = (choice == "Custom Model")
             return gr.update(visible=is_custom)
