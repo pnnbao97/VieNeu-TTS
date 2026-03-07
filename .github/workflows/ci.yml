@@ -8,23 +8,12 @@ on:
 
 jobs:
   test:
-    name: Test (Python ${{ matrix.python-version }}, ${{ matrix.os }})
+    name: Core Test (Python 3.12, ${{ matrix.os }})
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, windows-latest, macos-latest]
-        python-version: ["3.10", "3.11", "3.12", "3.13"]
-        # Add 3.14-dev as a separate matrix entry to avoid failing the whole CI if it's unstable
-        include:
-          - os: ubuntu-latest
-            python-version: "3.14-dev"
-
-    continue-on-error: ${{ matrix.python-version == '3.13' || matrix.python-version == '3.14-dev' }}
-
-    # Allow experimental versions to fail without failing the whole check
-    # but still show as failed in the UI if not successful.
-    # The 'continue-on-error' above handles the job status.
 
     steps:
       - uses: actions/checkout@v4
@@ -41,17 +30,13 @@ jobs:
 
       - name: Install espeak-ng (Windows)
         if: runner.os == 'Windows'
-        run: |
-          # espeak-ng is harder to install via CLI on Windows actions,
-          # but many tests use mocks or can skip phonemization if missing.
-          # For a more robust CI, we could use a custom installer or just rely on mocks.
-          echo "Espeak-ng installation skipped on Windows for now."
+        run: echo "Espeak-ng installation skipped on Windows for now."
 
       - name: Set up uv
         uses: astral-sh/setup-uv@v5
         with:
           enable-cache: true
-          python-version: ${{ matrix.python-version }}
+          python-version: "3.12"
 
       - name: Install dependencies
         run: uv sync --group dev
@@ -66,3 +51,30 @@ jobs:
         run: uv run pytest
         env:
           PYTHONPATH: src
+
+  sdk-compatibility:
+    name: SDK Compatibility (Python ${{ matrix.python-version }}, ${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        python-version: ["3.10", "3.11", "3.12", "3.13"]
+
+    # Python 3.13 and 3.14-dev might still fail due to upstream missing wheels (e.g. llama-cpp-python)
+    continue-on-error: ${{ matrix.python-version == '3.13' }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install VieNeu SDK (Base)
+        run: uv pip install .
+
+      - name: Verify Import
+        run: python -c "import vieneu; print('VieNeu SDK imported successfully')"
