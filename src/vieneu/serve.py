@@ -1,5 +1,4 @@
 import argparse
-import os
 import subprocess
 import sys
 import time
@@ -27,7 +26,7 @@ def run_server(args: argparse.Namespace) -> None:
     """
     Starts the LMDeploy API server.
     """
-    logger.info(f"🚀 Starting VieNeu-TTS Remote Server...")
+    logger.info("🚀 Starting VieNeu-TTS Remote Server...")
     logger.info(f"📦 Model: {args.model}")
     
     cmd = [
@@ -78,7 +77,7 @@ def run_server(args: argparse.Namespace) -> None:
 
     logger.info("\n💡 To use this server in your SDK:")
     sdk_url = f"http://{public_url}" if public_url else f"http://{get_public_ip()}:{args.port}"
-    logger.info(f"   from vieneu import Vieneu")
+    logger.info("   from vieneu import Vieneu")
     logger.info(f"   tts = Vieneu(mode='remote', api_base='{sdk_url}/v1', model_name='{args.model_name}')")
     logger.info("")
 

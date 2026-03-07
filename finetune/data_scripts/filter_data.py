@@ -80,7 +80,7 @@ def filter_and_process_dataset(dataset_dir="finetune/dataset"):
     with open(cleaned_metadata_path, 'w', encoding='utf-8') as f:
         f.writelines(valid_samples)
         
-    print(f"\n🦜 KẾT QUẢ LỌC DỮ LIỆU:")
+    print("\n🦜 KẾT QUẢ LỌC DỮ LIỆU:")
     print(f"   - Tổng ban đầu: {total_files}")
     print(f"   - Hợp lệ: {len(valid_samples)} ({len(valid_samples)/total_files*100:.1f}%)")
     print(f"   - Bị loại: {total_files - len(valid_samples)}")

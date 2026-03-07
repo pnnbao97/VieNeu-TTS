@@ -1,6 +1,5 @@
 import re
 from .num2vi import n2w, n2w_single
-from .symbols import vietnamese_re, vietnamese_without_num_re
 
 _vi_letter_names = {
     "a": "a", "b": "bê", "c": "xê", "d": "đê", "đ": "đê", "e": "e", "ê": "ê",

@@ -1,6 +1,5 @@
 import re
 from .num2vi import n2w
-from .symbols import vietnamese_re, vietnamese_for_date_re
 
 day_in_month = [31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
 _date_seperator = r"(\/|-|\.)"

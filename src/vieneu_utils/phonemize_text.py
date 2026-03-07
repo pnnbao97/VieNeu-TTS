@@ -1,5 +1,4 @@
 import os
-import json
 import platform
 import glob
 import re

@@ -1,5 +1,4 @@
 import numpy as np
-import pytest
 from vieneu.utils import _linear_overlap_add
 from vieneu_utils.core_utils import join_audio_chunks
 

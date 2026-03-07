@@ -1,6 +1,5 @@
 import re
 from .num2vi import n2w, n2w_single
-from .symbols import vietnamese_set
 
 _normal_number_re        = r"[\d]+"
 _float_number_re         = r"[\d]+[,]{1}[\d]+"

@@ -1,6 +1,6 @@
 import re
 import os
-from typing import List, Optional
+from typing import List
 import numpy as np
 
 # Pre-compile regex for splitting

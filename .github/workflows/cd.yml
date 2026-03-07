@@ -1,0 +1,35 @@
+name: CD
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  publish:
+    name: Build and Publish to PyPI
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write  # required for trusted publishing
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+          python-version: "3.12"
+
+      - name: Build package
+        run: uv build
+
+      - name: Publish to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          print-hash: true
+          # Skip for now as this is a new setup and might require tokens for the first time
+          # or use Trusted Publishing if configured on PyPI.
+          # To use tokens, set the 'PYPI_API_TOKEN' secret in GitHub.
+          # password: ${{ secrets.PYPI_API_TOKEN }}

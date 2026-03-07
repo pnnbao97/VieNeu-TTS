@@ -1,4 +1,3 @@
-import pytest
 from vieneu_utils.cleaner.num2vi import n2w, n2w_single
 
 def test_n2w_zero_padding():

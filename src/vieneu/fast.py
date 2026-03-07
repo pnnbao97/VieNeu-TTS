@@ -7,7 +7,7 @@ import logging
 from collections import defaultdict
 from .base import BaseVieneuTTS
 from .utils import _compile_codec_with_triton, extract_speech_ids, _linear_overlap_add
-from vieneu_utils.phonemize_text import phonemize_with_dict, phonemize_batch
+from vieneu_utils.phonemize_text import phonemize_batch
 from vieneu_utils.core_utils import split_text_into_chunks, join_audio_chunks
 from neucodec import NeuCodec, DistillNeuCodec
 

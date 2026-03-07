@@ -2,7 +2,7 @@ import numpy as np
 import torch
 import re
 import logging
-from typing import List, Dict, Optional, Any
+from typing import List, Dict, Any
 
 # Configure logging
 logger = logging.getLogger("Vieneu.Utils")

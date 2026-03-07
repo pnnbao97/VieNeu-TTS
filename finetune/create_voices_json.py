@@ -11,7 +11,6 @@ Usage:
 
 import argparse
 import json
-import torch
 from pathlib import Path
 import sys
 

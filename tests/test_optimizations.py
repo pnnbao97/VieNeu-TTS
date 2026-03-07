@@ -1,7 +1,7 @@
 import pytest
 import os
 import sys
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
 
 # Thêm src vào path
 sys.path.insert(0, os.path.abspath(os.path.join(os.getcwd(), 'src')))

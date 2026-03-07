@@ -1,4 +1,3 @@
-import os
 import torch
 import argparse
 from transformers import AutoTokenizer, AutoModelForCausalLM

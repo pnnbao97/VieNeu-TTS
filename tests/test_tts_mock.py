@@ -3,7 +3,6 @@ from unittest.mock import MagicMock, patch
 import numpy as np
 import torch
 from vieneu.standard import VieNeuTTS
-from pathlib import Path
 
 @pytest.fixture
 def mock_tts():

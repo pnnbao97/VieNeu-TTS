@@ -8,7 +8,6 @@ import os
 import sys
 import time
 import numpy as np
-from typing import Generator, Optional, Tuple
 import queue
 import threading
 import yaml
@@ -226,7 +225,7 @@ def load_model(backbone_choice: str, codec_choice: str, device_choice: str,
         
         if use_lmdeploy:
             lmdeploy_error_reason = None
-            print(f"🚀 Using LMDeploy backend with optimizations")
+            print("🚀 Using LMDeploy backend with optimizations")
             
             backbone_device = "cuda"
             
@@ -249,7 +248,7 @@ def load_model(backbone_choice: str, codec_choice: str, device_choice: str,
                     if os.path.exists(cache_dir):
                         print("   ⚠️ Detected incomplete cache, rebuilding...")
                     yield (
-                         f"⏳ Đang merge và lưu model LoRA để tối ưu cho LMDeploy (thao tác này chỉ chạy một lần)...",
+                         "⏳ Đang merge và lưu model LoRA để tối ưu cho LMDeploy (thao tác này chỉ chạy một lần)...",
                          gr.update(interactive=False),
                          gr.update(interactive=False),
                          gr.update(interactive=False),
@@ -275,7 +274,7 @@ def load_model(backbone_choice: str, codec_choice: str, device_choice: str,
                         print(f"   • Loading Adapter: {custom_model_id}")
                         temp_tts.load_lora_adapter(custom_model_id.strip(), hf_token=custom_hf_token)
                         
-                        print(f"   • Merging...")
+                        print("   • Merging...")
                         if hasattr(temp_tts.backbone, "merge_and_unload"):
                             temp_tts.backbone = temp_tts.backbone.merge_and_unload()
                         
@@ -295,7 +294,7 @@ def load_model(backbone_choice: str, codec_choice: str, device_choice: str,
                             print(f"   ⚠️ Warning: Could not save slow tokenizer files: {e}")
 
                         # Save voices.json to cache directory so FastVieNeuTTS can find it
-                        print(f"   • Saving voices definition...")
+                        print("   • Saving voices definition...")
                         import json
                         voices_json_path = os.path.join(cache_dir, "voices.json")
                         voices_content = {
@@ -315,10 +314,10 @@ def load_model(backbone_choice: str, codec_choice: str, device_choice: str,
                         traceback.print_exc()
                         raise RuntimeError(f"Failed to merge & save LoRA for LMDeploy: {e}")
 
-            print(f"📦 Loading optimized model...")
+            print("📦 Loading optimized model...")
             print(f"   Backbone: {target_backbone_repo} on {backbone_device}")
             print(f"   Codec: {codec_config['repo']} on {codec_device}")
-            print(f"   Triton: Enabled")
+            print("   Triton: Enabled")
             
             try:
                 tts = FastVieNeuTTS(
@@ -335,7 +334,7 @@ def load_model(backbone_choice: str, codec_choice: str, device_choice: str,
                 using_lmdeploy = True
                 
                 # Legacy caching removed
-                print(f"   ✅ Optimized backend initialized")
+                print("   ✅ Optimized backend initialized")
                 
             except Exception as e:
                 import traceback
@@ -360,7 +359,7 @@ def load_model(backbone_choice: str, codec_choice: str, device_choice: str,
                 using_lmdeploy = False
         
         if not use_lmdeploy:
-            print(f"📦 Using original backend")
+            print("📦 Using original backend")
 
             if device_choice == "Auto":
                 if "gguf" in backbone_config['repo'].lower():
@@ -398,7 +397,7 @@ def load_model(backbone_choice: str, codec_choice: str, device_choice: str,
             if "gguf" in backbone_config['repo'].lower() and backbone_device == "cuda":
                 backbone_device = "gpu"
             
-            print(f"📦 Loading model...")
+            print("📦 Loading model...")
             print(f"   Backbone: {backbone_config['repo']} on {backbone_device}")
             print(f"   Codec: {codec_config['repo']} on {codec_device}")
             
@@ -1095,7 +1094,7 @@ with gr.Blocks(theme=theme, css=css, title="VieNeu-TTS", head=head_html) as demo
             # --- INPUT ---
             with gr.Column(scale=3):
                 text_input = gr.Textbox(
-                    label=f"Văn bản",
+                    label="Văn bản",
                     lines=4,
                     value="Hà Nội, trái tim của Việt Nam, là một thành phố ngàn năm văn hiến với bề dày lịch sử và văn hóa độc đáo. Bước chân trên những con phố cổ kính quanh Hồ Hoàn Kiếm, du khách như được du hành ngược thời gian, chiêm ngưỡng kiến trúc Pháp cổ điển hòa quyện với nét kiến trúc truyền thống Việt Nam. Mỗi con phố trong khu phố cổ mang một tên gọi đặc trưng, phản ánh nghề thủ công truyền thống từng thịnh hành nơi đây như phố Hàng Bạc, Hàng Đào, Hàng Mã. Ẩm thực Hà Nội cũng là một điểm nhấn đặc biệt, từ tô phở nóng hổi buổi sáng, bún chả thơm lừng trưa hè, đến chè Thái ngọt ngào chiều thu. Những món ăn dân dã này đã trở thành biểu tượng của văn hóa ẩm thực Việt, được cả thế giới yêu mến. Người Hà Nội nổi tiếng với tính cách hiền hòa, lịch thiệp nhưng cũng rất cầu toàn trong từng chi tiết nhỏ, từ cách pha trà sen cho đến cách chọn hoa sen tây để thưởng trà.",
                 )

@@ -1,10 +1,9 @@
 import os
-import csv
 import soundfile as sf
 from datasets import load_dataset
 from tqdm import tqdm
 
-from datasets import load_dataset, Audio
+from datasets import Audio
 import io
 
 def download_sample_data(output_dir="finetune/dataset", num_samples=10):
@@ -17,7 +16,7 @@ def download_sample_data(output_dir="finetune/dataset", num_samples=10):
     
     os.makedirs(raw_audio_dir, exist_ok=True)
     
-    print(f"🔄 Đang tải dataset pnnbao-ump/ngochuyen_voice từ Hugging Face...")
+    print("🔄 Đang tải dataset pnnbao-ump/ngochuyen_voice từ Hugging Face...")
     dataset = load_dataset("pnnbao-ump/ngochuyen_voice", split="train", streaming=True)
     
     dataset = dataset.cast_column("audio", Audio(decode=False))
@@ -55,7 +54,7 @@ def download_sample_data(output_dir="finetune/dataset", num_samples=10):
                 print(f"\n⚠️ Lỗi khi xử lý mẫu {count}: {e}")
                 continue
             
-    print(f"\n🦜 Hoàn tất! Đã tạo dữ liệu mẫu tại:")
+    print("\n🦜 Hoàn tất! Đã tạo dữ liệu mẫu tại:")
     print(f"   - Audio: {raw_audio_dir}")
     print(f"   - Metadata: {metadata_path}")
     print("\nBạn có thể kiểm tra file metadata.csv để xem cấu trúc.")

@@ -1,4 +1,3 @@
-import pytest
 from vieneu_utils.phonemize_text import phonemize_with_dict, phonemize_batch
 
 def test_phonemize_vietnamese():

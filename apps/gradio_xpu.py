@@ -178,7 +178,7 @@ def load_model(backbone_choice: str, codec_choice: str, device_choice: str,
         backbone_device = "xpu"
         codec_device = "cpu" if "ONNX" in codec_choice else "xpu"
         
-        print(f"📦 Loading model on XPU...")
+        print("📦 Loading model on XPU...")
         print(f"   Backbone: {backbone_config['repo']} on {backbone_device}")
         print(f"   Codec: {codec_config['repo']} on {codec_device}")
         
@@ -524,7 +524,7 @@ def synthesize_speech(text: str, voice_choice: str, custom_audio, custom_text: s
         full_audio_buffer = []
         for sr, audio_data in pre_buffer:
             full_audio_buffer.append(audio_data)
-            yield (sr, audio_data), f"🔊 Đang phát (Intel XPU)..."
+            yield (sr, audio_data), "🔊 Đang phát (Intel XPU)..."
         
         while True:
             try:
@@ -533,7 +533,7 @@ def synthesize_speech(text: str, voice_choice: str, custom_audio, custom_text: s
                     break
                 sr, audio_data = item
                 full_audio_buffer.append(audio_data)
-                yield (sr, audio_data), f"🔊 Đang phát (Intel XPU)..."
+                yield (sr, audio_data), "🔊 Đang phát (Intel XPU)..."
             except queue.Empty:
                 if error_event.is_set():
                     yield None, f"❌ Lỗi: {error_msg}"
@@ -546,7 +546,7 @@ def synthesize_speech(text: str, voice_choice: str, custom_audio, custom_text: s
             final_wav = np.concatenate(full_audio_buffer)
             with tempfile.NamedTemporaryFile(delete=False, suffix=".wav") as tmp:
                 sf.write(tmp.name, final_wav, sr)
-                yield tmp.name, f"✅ Hoàn tất Streaming! (Intel XPU)"
+                yield tmp.name, "✅ Hoàn tất Streaming! (Intel XPU)"
             
             cleanup_gpu_memory()
 
@@ -744,7 +744,7 @@ with gr.Blocks(theme=theme, css=css, title="VieNeu-TTS (XPU)", head=head_html) a
             # --- INPUT ---
             with gr.Column(scale=3):
                 text_input = gr.Textbox(
-                    label=f"Văn bản",
+                    label="Văn bản",
                     lines=4,
                     value="Hà Nội, trái tim của Việt Nam, là một thành phố ngàn năm văn hiến với bề dày lịch sử và văn hóa độc đáo. Bước chân trên những con phố cổ kính quanh Hồ Hoàn Kiếm, du khách như được du hành ngược thời gian, chiêm ngưỡng kiến trúc Pháp cổ điển hòa quyện với nét kiến trúc truyền thống Việt Nam. Mỗi con phố trong khu phố cổ mang một tên gọi đặc trưng, phản ánh nghề thủ công truyền thống từng thịnh hành nơi đây như phố Hàng Bạc, Hàng Đào, Hàng Mã. Ẩm thực Hà Nội cũng là một điểm nhấn đặc biệt, từ tô phở nóng hổi buổi sáng, bún chả thơm lừng trưa hè, đến chè Thái ngọt ngào chiều thu. Những món ăn dân dã này đã trở thành biểu tượng của văn hóa ẩm thực Việt, được cả thế giới yêu mến. Người Hà Nội nổi tiếng với tính cách hiền hòa, lịch thiệp nhưng cũng rất cầu toàn trong từng chi tiết nhỏ, từ cách pha trà sen cho đến cách chọn hoa sen tây để thưởng trà.",
                 )

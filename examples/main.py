@@ -48,7 +48,7 @@ def main():
         # Get reference data for this specific voice
         voice_data = tts.get_preset_voice(my_voice_id)
         
-        test_text = f"Chào bạn, tôi đang nói bằng giọng của bác sĩ Tuyên."
+        test_text = "Chào bạn, tôi đang nói bằng giọng của bác sĩ Tuyên."
         audio_spec = tts.infer(text=test_text, voice=voice_data)
         
         tts.save(audio_spec, f"outputs/standard_{my_voice_id}.wav")

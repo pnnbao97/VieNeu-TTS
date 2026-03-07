@@ -1,5 +1,4 @@
 import numpy as np
-import pytest
 from vieneu_utils.core_utils import split_text_into_chunks, join_audio_chunks
 
 def test_split_text_into_chunks():

@@ -1,8 +1,7 @@
 import torch
-import gc
 import librosa
 import numpy as np
-from typing import Optional, Union, List
+from typing import Optional, Union
 from pathlib import Path
 from transformers import AutoTokenizer, AutoModelForCausalLM
 import logging
@@ -62,7 +61,7 @@ class XPUVieNeuTTS(VieNeuTTS):
             dtype=torch.bfloat16
         ).to(device="xpu")
         
-        logger.info(f"   ✅ Model loaded on XPU device")
+        logger.info("   ✅ Model loaded on XPU device")
 
     def _load_codec(self, codec_repo, codec_device):
         """XPU (Intel Arc GPU) codec loading implementation."""
@@ -83,7 +82,7 @@ class XPUVieNeuTTS(VieNeuTTS):
             case _:
                 raise ValueError(f"Unsupported codec repository: {codec_repo}")
         
-        logger.info(f"   ✅ Codec loaded on XPU device")
+        logger.info("   ✅ Codec loaded on XPU device")
 
 
 

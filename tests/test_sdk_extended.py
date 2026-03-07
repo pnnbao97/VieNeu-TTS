@@ -2,7 +2,6 @@ import pytest
 from unittest.mock import MagicMock, patch
 import numpy as np
 import torch
-from vieneu.factory import Vieneu
 from vieneu.standard import VieNeuTTS
 from vieneu.remote import RemoteVieNeuTTS
 from vieneu_utils.phonemize_text import PhonemeDB
@@ -59,7 +58,6 @@ def test_sqlite_chunking():
 
 def test_base_encode_reference_device(mock_torch_backbone):
     """Test BaseVieneuTTS.encode_reference moves tensor to correct device."""
-    from vieneu.standard import VieNeuTTS
 
     with patch("librosa.load", return_value=(np.zeros(16000), 16000)), \
          patch.object(VieNeuTTS, '_warmup_model'):
@@ -73,7 +71,6 @@ def test_base_encode_reference_device(mock_torch_backbone):
 
 def test_standard_true_batching(mock_torch_backbone):
     """Test that VieNeuTTS.infer_batch uses true batch generation for Torch backend."""
-    from vieneu.standard import VieNeuTTS
 
     with patch.object(VieNeuTTS, '_warmup_model'), \
          patch("vieneu.standard.phonemize_batch", return_value=["p1", "p2"]):
@@ -126,7 +123,6 @@ def test_remote_parallel_chunking():
 
 def test_lora_loading_logic(mock_torch_backbone):
     """Test LoRA adapter loading and unloading."""
-    from vieneu.standard import VieNeuTTS
 
     with patch.object(VieNeuTTS, '_warmup_model'), \
          patch("peft.PeftModel.from_pretrained") as mock_peft:

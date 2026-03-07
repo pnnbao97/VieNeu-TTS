@@ -10,7 +10,7 @@ import random
 def encode_dataset(dataset_dir="finetune/dataset", max_samples=2000):
     metadata_path = os.path.join(dataset_dir, "metadata_cleaned.csv")
     if not os.path.exists(metadata_path):
-        print(f"🦜 Không tìm thấy metadata_cleaned.csv, thử dùng metadata.csv gốc...")
+        print("🦜 Không tìm thấy metadata_cleaned.csv, thử dùng metadata.csv gốc...")
         metadata_path = os.path.join(dataset_dir, "metadata.csv")
         
     output_path = os.path.join(dataset_dir, "metadata_encoded.csv")

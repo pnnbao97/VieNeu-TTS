@@ -7,7 +7,7 @@ import torch
 import gc
 import logging
 from .base import BaseVieneuTTS
-from .utils import extract_speech_ids, _linear_overlap_add
+from .utils import _linear_overlap_add
 from vieneu_utils.phonemize_text import phonemize_with_dict, phonemize_batch
 from vieneu_utils.core_utils import split_text_into_chunks, join_audio_chunks
 from neucodec import NeuCodec, DistillNeuCodec
@@ -161,7 +161,7 @@ class VieNeuTTS(BaseVieneuTTS):
 
         try:
             from peft import PeftModel
-        except ImportError as e:
+        except ImportError:
             raise ImportError("PEFT library required for LoRA. Install with: pip install peft")
 
         logger.info(f"🎯 Loading LoRA adapter from: {lora_repo_id}")

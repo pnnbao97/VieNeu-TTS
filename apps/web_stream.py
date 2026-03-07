@@ -1,7 +1,6 @@
 
 import os
 import time
-import asyncio
 import numpy as np
 from fastapi import FastAPI
 from fastapi.responses import HTMLResponse, StreamingResponse
@@ -9,7 +8,6 @@ import uvicorn
 from vieneu import Vieneu
 import io
 import wave
-from huggingface_hub import hf_hub_download
 
 # ==========================================
 # CONFIG GGUF MODELS
