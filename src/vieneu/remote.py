@@ -9,7 +9,7 @@ import logging
 from .standard import VieNeuTTS
 from .utils import _linear_overlap_add
 from vieneu_utils.core_utils import split_text_into_chunks, join_audio_chunks
-from vieneu_utils.phonemize_text import phonemize_batch
+from vieneu_utils.phonemize_text import phonemize_with_dict, phonemize_batch
 
 logger = logging.getLogger("Vieneu.Remote")
 
