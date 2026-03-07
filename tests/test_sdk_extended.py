@@ -1,12 +1,15 @@
-import pytest
-from unittest.mock import MagicMock, patch
-import numpy as np
-import torch
-from vieneu.factory import Vieneu
-from vieneu.standard import VieNeuTTS
-from vieneu.remote import RemoteVieNeuTTS
-from vieneu_utils.phonemize_text import PhonemeDB
 import sqlite3
+from unittest.mock import MagicMock, patch
+
+import numpy as np
+import pytest
+import torch
+
+from vieneu.factory import Vieneu
+from vieneu.remote import RemoteVieNeuTTS
+from vieneu.standard import VieNeuTTS
+from vieneu_utils.phonemize_text import PhonemeDB
+
 
 @pytest.fixture
 def mock_torch_backbone():

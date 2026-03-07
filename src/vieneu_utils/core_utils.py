@@ -1,6 +1,7 @@
-import re
 import os
+import re
 from typing import List, Optional
+
 import numpy as np
 
 # Pre-compile regex for splitting
@@ -25,15 +26,15 @@ def join_audio_chunks(chunks: List[np.ndarray], sr: int, silence_p: float = 0.0,
         return np.array([], dtype=np.float32)
     if len(chunks) == 1:
         return chunks[0]
-    
+
     silence_samples = int(sr * silence_p)
     crossfade_samples = int(sr * crossfade_p)
-    
+
     final_wav = chunks[0]
-    
+
     for i in range(1, len(chunks)):
         next_chunk = chunks[i]
-        
+
         if silence_samples > 0:
             # 1. Add silence between chunks
             silence = np.zeros(silence_samples, dtype=np.float32)
@@ -44,7 +45,7 @@ def join_audio_chunks(chunks: List[np.ndarray], sr: int, silence_p: float = 0.0,
             if overlap > 0:
                 fade_out = np.linspace(1.0, 0.0, overlap, dtype=np.float32)
                 fade_in = np.linspace(0.0, 1.0, overlap, dtype=np.float32)
-                
+
                 blended = (final_wav[-overlap:] * fade_out + next_chunk[:overlap] * fade_in)
                 final_wav = np.concatenate([
                     final_wav[:-overlap],
@@ -56,7 +57,7 @@ def join_audio_chunks(chunks: List[np.ndarray], sr: int, silence_p: float = 0.0,
         else:
             # 3. Simple concatenation
             final_wav = np.concatenate([final_wav, next_chunk])
-            
+
     return final_wav
 
 def split_text_into_chunks(text: str, max_chars: int = 256) -> List[str]:
@@ -81,35 +82,35 @@ def split_text_into_chunks(text: str, max_chars: int = 256) -> List[str]:
         para = para.strip()
         if not para:
             continue
-            
+
         # 2. Split current paragraph into sentences
         sentences = RE_SENTENCE_END.split(para)
-        
+
         buffer = ""
         for sentence in sentences:
             sentence = sentence.strip()
             if not sentence:
                 continue
-                
+
             # If sentence itself is longer than max_chars, we must split it by minor punctuation or words
             if len(sentence) > max_chars:
                 # Flush buffer before handling a giant sentence
                 if buffer:
                     final_chunks.append(buffer)
                     buffer = ""
-                
+
                 # Split giant sentence by minor punctuation (, ; : -)
                 sub_parts = RE_MINOR_PUNCT.split(sentence)
                 for part in sub_parts:
                     part = part.strip()
                     if not part: continue
-                    
+
                     if len(buffer) + 1 + len(part) <= max_chars:
                         buffer = (buffer + " " + part) if buffer else part
                     else:
                         if buffer: final_chunks.append(buffer)
                         buffer = part
-                        
+
                         # If even a sub-part is too long, split by spaces (words)
                         if len(buffer) > max_chars:
                             words = buffer.split()
@@ -128,7 +129,7 @@ def split_text_into_chunks(text: str, max_chars: int = 256) -> List[str]:
                     buffer = sentence
                 else:
                     buffer = (buffer + " " + sentence) if buffer else sentence
-        
+
         # End of paragraph: flush whatever is in buffer
         if buffer:
             final_chunks.append(buffer)

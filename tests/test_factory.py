@@ -1,9 +1,12 @@
-import pytest
 from unittest.mock import patch
+
+import pytest
+
 from vieneu.factory import Vieneu
-from vieneu.standard import VieNeuTTS
 from vieneu.fast import FastVieNeuTTS
 from vieneu.remote import RemoteVieNeuTTS
+from vieneu.standard import VieNeuTTS
+
 
 def test_factory_standard():
     with patch('vieneu.standard.VieNeuTTS.__init__', return_value=None):

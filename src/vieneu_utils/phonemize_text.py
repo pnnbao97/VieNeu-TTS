@@ -1,14 +1,16 @@
-import os
-import json
-import platform
-import glob
-import re
-import logging
 import functools
+import glob
+import json
+import logging
+import os
+import platform
+import re
 import sqlite3
 import threading
+
 from phonemizer import phonemize
 from phonemizer.backend.espeak.espeak import EspeakWrapper
+
 from vieneu_utils.normalize_text import VietnameseTTSNormalizer
 
 # Configuration
@@ -38,10 +40,10 @@ class PhonemeDB:
         if not words: return {}, {}
         conn = self._get_conn()
         cursor = conn.cursor()
-        
+
         merged_map = {}
         common_map = {}
-        
+
         # SQLite has a limit on the number of host parameters (typically 999)
         chunk_size = 950
         for i in range(0, len(words), chunk_size):
@@ -56,13 +58,13 @@ class PhonemeDB:
             cursor.execute(f"SELECT word, vi_phone, en_phone FROM common WHERE word IN ({placeholders})", chunk)
             for row in cursor.fetchall():
                 common_map[row[0]] = {"vi": row[1], "en": row[2]}
-        
+
         return merged_map, common_map
 
 def setup_espeak_library() -> None:
     """Configure eSpeak library path based on operating system."""
     system = platform.system()
-    
+
     if system == "Windows":
         _setup_windows_espeak()
     elif system == "Linux":
@@ -90,31 +92,31 @@ def _setup_linux_espeak() -> None:
         "/usr/lib64/libespeak-ng.so*",
         "/usr/local/lib/libespeak-ng.so*",
     ]
-    
+
     for pattern in search_patterns:
         matches = glob.glob(pattern)
         if matches:
             EspeakWrapper.set_library(sorted(matches, key=len)[0])
             return
-    
+
     logger.warning("\033[91;1m⚠️ eSpeak-NG is not installed on Linux. The system will use the built-in dictionary, but it is recommended to install eSpeak-NG (sudo apt install espeak-ng) for maximum performance.\033[0m")
 
 def _setup_macos_espeak() -> None:
     """Setup eSpeak for macOS."""
     espeak_lib = os.environ.get('PHONEMIZER_ESPEAK_LIBRARY')
-    
+
     paths_to_check = [
         espeak_lib,
         "/opt/homebrew/lib/libespeak-ng.dylib",  # Apple Silicon
         "/usr/local/lib/libespeak-ng.dylib",     # Intel
         "/opt/local/lib/libespeak-ng.dylib",     # MacPorts
     ]
-    
+
     for path in paths_to_check:
         if path and os.path.exists(path):
             EspeakWrapper.set_library(path)
             return
-    
+
     logger.warning("\033[91;1m⚠️ eSpeak-NG is not installed on macOS. The system will use the built-in dictionary, but it is recommended to install eSpeak-NG (brew install espeak-ng) for maximum performance.\033[0m")
 
 # Initialize
@@ -180,7 +182,7 @@ def propagate_language(tokens):
                     left_anchor = tokens[l]['lang']
                     left_dist = start - l
                     break
-            
+
             # Search right
             for r in range(end + 1, n):
                 if tokens[r]['content'] in _STOP_PUNCT: break

@@ -1,8 +1,11 @@
-import pytest
+from unittest.mock import MagicMock, patch
+
 import numpy as np
+import pytest
 import torch
-from unittest.mock import patch, MagicMock
+
 from vieneu.remote import RemoteVieNeuTTS
+
 
 @pytest.fixture
 def remote_tts():

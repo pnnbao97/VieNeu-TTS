@@ -1,8 +1,9 @@
+import logging
+import re
+from typing import Any, Dict, List, Optional
+
 import numpy as np
 import torch
-import re
-import logging
-from typing import List, Dict, Optional, Any
 
 # Configure logging
 logger = logging.getLogger("Vieneu.Utils")

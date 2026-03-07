@@ -1,6 +1,7 @@
-from .standard import VieNeuTTS
 from .fast import FastVieNeuTTS
 from .remote import RemoteVieNeuTTS
+from .standard import VieNeuTTS
+
 
 def Vieneu(mode="standard", **kwargs):
     """

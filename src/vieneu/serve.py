@@ -1,10 +1,11 @@
 import argparse
+import logging
 import os
 import subprocess
 import sys
 import time
+
 import requests
-import logging
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(message)s')
@@ -27,9 +28,9 @@ def run_server(args: argparse.Namespace) -> None:
     """
     Starts the LMDeploy API server.
     """
-    logger.info(f"🚀 Starting VieNeu-TTS Remote Server...")
+    logger.info("🚀 Starting VieNeu-TTS Remote Server...")
     logger.info(f"📦 Model: {args.model}")
-    
+
     cmd = [
         "lmdeploy", "serve", "api_server",
         args.model,
@@ -39,28 +40,28 @@ def run_server(args: argparse.Namespace) -> None:
         "--cache-max-entry-count", str(args.memory_util),
         "--model-name", args.model_name
     ]
-    
+
     if args.quant_policy:
         cmd.extend(["--quant-policy", str(args.quant_policy)])
 
     logger.info(f"🛠️ Command: {' '.join(cmd)}")
-    
+
     # Start the server in a subprocess
     server_process = subprocess.Popen(cmd)
-    
+
     # Wait for server to start
     logger.info(f"⏳ Waiting for server to initialize on port {args.port}...")
-    
+
     # Optional Tunneling
     tunnel_process = None
     public_url = None
-    
+
     if args.tunnel:
         if check_command("bore"):
             logger.info("🌐 Starting tunnel via 'bore'...")
             tunnel_cmd = ["bore", "local", str(args.port), "--to", "bore.pub"]
             tunnel_process = subprocess.Popen(tunnel_cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
-            
+
             # Try to catch the public URL from bore output
             start_time = time.time()
             while time.time() - start_time < 10:
@@ -78,7 +79,7 @@ def run_server(args: argparse.Namespace) -> None:
 
     logger.info("\n💡 To use this server in your SDK:")
     sdk_url = f"http://{public_url}" if public_url else f"http://{get_public_ip()}:{args.port}"
-    logger.info(f"   from vieneu import Vieneu")
+    logger.info("   from vieneu import Vieneu")
     logger.info(f"   tts = Vieneu(mode='remote', api_base='{sdk_url}/v1', model_name='{args.model_name}')")
     logger.info("")
 
@@ -99,19 +100,19 @@ def main() -> None:
     parser.add_argument("--memory-util", type=float, default=0.3, help="GPU memory utilization (0.0-1.0)")
     parser.add_argument("--quant-policy", type=int, default=0, help="KV cache quantization (0, 4, 8)")
     parser.add_argument("--tunnel", action="store_true", help="Automatically expose the server via bore.pub")
-    
+
     args = parser.parse_args()
 
     # Sync model_name with model if model is provided but model_name is default
     if args.model != "pnnbao-ump/VieNeu-TTS" and args.model_name == "pnnbao-ump/VieNeu-TTS":
         args.model_name = args.model
-    
+
     # Check if lmdeploy is installed
     if not check_command("lmdeploy"):
         logger.error("❌ 'lmdeploy' not found!")
         logger.error("   Please install it using: pip install vieneu[gpu]")
         sys.exit(1)
-        
+
     run_server(args)
 
 if __name__ == "__main__":

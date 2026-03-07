@@ -1,8 +1,11 @@
 import time
+
 import numpy as np
-from vieneu_utils.normalize_text import VietnameseTTSNormalizer
-from vieneu_utils.phonemize_text import phonemize_with_dict, phonemize_batch
+
 from vieneu_utils.core_utils import split_text_into_chunks
+from vieneu_utils.normalize_text import VietnameseTTSNormalizer
+from vieneu_utils.phonemize_text import phonemize_batch, phonemize_with_dict
+
 
 def benchmark_normalization(n_iterations=100):
     normalizer = VietnameseTTSNormalizer()

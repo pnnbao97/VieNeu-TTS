@@ -1,5 +1,7 @@
 import pytest
+
 from vieneu_utils.normalize_text import VietnameseTTSNormalizer
+
 
 @pytest.fixture
 def normalizer():
@@ -239,7 +241,7 @@ def test_normalize(normalizer, input_text, expected):
     # Clean up whitespace for comparison
     actual_clean = " ".join(actual.split()).lower()
     expected_clean = " ".join(expected.split()).lower()
-    
+
     # Special handling for brackets/punctuation to match expectation
     # Note: brackets are sometimes kept or removed depending on normalizer state
     # We follow the user provided expected strings

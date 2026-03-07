@@ -1,12 +1,14 @@
+import gc
+import json
+import logging
 from abc import ABC, abstractmethod
 from pathlib import Path
-from typing import Optional, Union, List, Dict, Any, Generator
-import json
-import torch
+from typing import Any, Dict, Generator, List, Optional, Union
+
 import numpy as np
-import gc
-import logging
+import torch
 from huggingface_hub import hf_hub_download
+
 from vieneu_utils.normalize_text import VietnameseTTSNormalizer
 
 # Configure logging
@@ -61,7 +63,7 @@ class BaseVieneuTTS(ABC):
                 if clear_existing:
                      self._preset_voices.clear()
                 logger.warning(f"Validation Warning: Local path '{backbone_repo}' missing 'voices.json'.")
-                logger.warning(f"Falling back to Custom Voice Cloning mode.")
+                logger.warning("Falling back to Custom Voice Cloning mode.")
         else:
             # Remote Repo
             if clear_existing:
@@ -71,7 +73,7 @@ class BaseVieneuTTS(ABC):
                 self._load_voices_from_repo(backbone_repo, hf_token)
             except Exception as e:
                 logger.warning(f"Could not load voices from repo '{backbone_repo}': {e}")
-                logger.warning(f"Falling back to Custom Voice Cloning mode.")
+                logger.warning("Falling back to Custom Voice Cloning mode.")
 
     def _load_voices_from_file(self, file_path: Path, clear_existing: bool = False) -> None:
         """Load voices from a local JSON file."""
@@ -116,7 +118,7 @@ class BaseVieneuTTS(ABC):
             )
         except Exception:
             # 2. Network error? Try to use cached version if available
-            logger.warning(f"Network check failed for voices.json. Trying local cache...")
+            logger.warning("Network check failed for voices.json. Trying local cache...")
             try:
                 voices_file = hf_hub_download(
                     repo_id=repo_id,
@@ -125,7 +127,7 @@ class BaseVieneuTTS(ABC):
                     repo_type="model",
                     local_files_only=True
                 )
-                logger.info(f"✅ Using cached voices.json")
+                logger.info("✅ Using cached voices.json")
             except Exception:
                 # 3. No cache available either
                 pass

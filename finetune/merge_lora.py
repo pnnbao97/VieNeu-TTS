@@ -1,8 +1,10 @@
-import os
-import torch
 import argparse
-from transformers import AutoTokenizer, AutoModelForCausalLM
+import os
+
+import torch
 from peft import PeftModel
+from transformers import AutoModelForCausalLM, AutoTokenizer
+
 
 def merge_lora(base_model_path, adapter_path, output_path):
     print(f"Loading base model from {base_model_path}...")
@@ -30,6 +32,6 @@ if __name__ == "__main__":
     parser.add_argument("--base_model", type=str, required=True, help="Base model HuggingFace ID or local path")
     parser.add_argument("--adapter", type=str, required=True, help="Path to LoRA adapter checkout")
     parser.add_argument("--output", type=str, required=True, help="Output directory for merged model")
-    
+
     args = parser.parse_args()
     merge_lora(args.base_model, args.adapter, args.output)

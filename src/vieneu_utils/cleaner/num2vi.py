@@ -38,7 +38,7 @@ def n2w_hundreds(numbers: str) -> str:
     """Convert 1-3 digit number to Vietnamese words."""
     if not numbers or numbers == '000':
         return ""
-    
+
     # Pad to 3 digits
     n = numbers.zfill(3)
     h_digit, t_digit, u_digit = n[0], n[1], n[2]
@@ -80,7 +80,7 @@ def n2w_large_number(numbers: str) -> str:
     """Convert large numbers to Vietnamese words."""
     if not numbers or not numbers.lstrip('0'):
         return units['0']
-        
+
     # Remove leading zeros
     numbers = numbers.lstrip('0')
 

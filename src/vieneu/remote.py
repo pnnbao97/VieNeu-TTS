@@ -1,15 +1,18 @@
-from pathlib import Path
-from typing import Optional, Union, List, Generator, Any, Dict
-import numpy as np
-import torch
-import requests
-import json
 import asyncio
+import json
 import logging
+from pathlib import Path
+from typing import Any, Dict, Generator, List, Optional, Union
+
+import numpy as np
+import requests
+import torch
+
+from vieneu_utils.core_utils import join_audio_chunks, split_text_into_chunks
+from vieneu_utils.phonemize_text import phonemize_batch, phonemize_with_dict
+
 from .standard import VieNeuTTS
 from .utils import _linear_overlap_add
-from vieneu_utils.phonemize_text import phonemize_with_dict
-from vieneu_utils.core_utils import split_text_into_chunks, join_audio_chunks
 
 logger = logging.getLogger("Vieneu.Remote")
 

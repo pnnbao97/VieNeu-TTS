@@ -1,9 +1,12 @@
-import pytest
-from unittest.mock import MagicMock, patch
-import numpy as np
-import torch
-from vieneu.standard import VieNeuTTS
 from pathlib import Path
+from unittest.mock import MagicMock, patch
+
+import numpy as np
+import pytest
+import torch
+
+from vieneu.standard import VieNeuTTS
+
 
 @pytest.fixture
 def mock_tts():

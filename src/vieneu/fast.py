@@ -1,15 +1,18 @@
-from pathlib import Path
-from typing import Optional, Union, List, Generator, Any, Dict
-import numpy as np
-import torch
 import gc
 import logging
 from collections import defaultdict
+from pathlib import Path
+from typing import Any, Dict, Generator, List, Optional, Union
+
+import numpy as np
+import torch
+from neucodec import DistillNeuCodec, NeuCodec
+
+from vieneu_utils.core_utils import join_audio_chunks, split_text_into_chunks
+from vieneu_utils.phonemize_text import phonemize_batch, phonemize_with_dict
+
 from .base import BaseVieneuTTS
-from .utils import _compile_codec_with_triton, extract_speech_ids, _linear_overlap_add
-from vieneu_utils.phonemize_text import phonemize_with_dict, phonemize_batch
-from vieneu_utils.core_utils import split_text_into_chunks, join_audio_chunks
-from neucodec import NeuCodec, DistillNeuCodec
+from .utils import _compile_codec_with_triton, _linear_overlap_add, extract_speech_ids
 
 logger = logging.getLogger("Vieneu.Fast")
 
@@ -66,7 +69,7 @@ class FastVieNeuTTS(BaseVieneuTTS):
             os.environ["HF_TOKEN"] = hf_token
 
         try:
-            from lmdeploy import pipeline, TurbomindEngineConfig, GenerationConfig
+            from lmdeploy import GenerationConfig, TurbomindEngineConfig, pipeline
         except ImportError as e:
             raise ImportError(
                 "Failed to import `lmdeploy`. Install with: pip install vieneu[gpu]"

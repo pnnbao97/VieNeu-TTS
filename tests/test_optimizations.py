@@ -1,12 +1,14 @@
-import pytest
 import os
 import sys
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock, patch
+
+import pytest
 
 # Thêm src vào path
 sys.path.insert(0, os.path.abspath(os.path.join(os.getcwd(), 'src')))
 
 from vieneu_utils.phonemize_text import phonemize_batch, phonemize_with_dict
+
 
 def test_phonemize_batch_deduplication():
     # Use 3 texts with overlapping words and English segments
@@ -40,7 +42,7 @@ def test_phonemize_batch_deduplication():
 
         assert "world" in [w.lower() for w in en_call_words]
         assert "cái" in [w.lower() for w in vi_call_words]
-        
+
 def test_phonemize_with_dict_caching():
     from vieneu_utils.phonemize_text import _phonemize_with_dict_cached
     text = "Câu này sẽ được cache"

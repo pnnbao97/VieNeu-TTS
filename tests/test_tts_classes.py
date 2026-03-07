@@ -1,9 +1,12 @@
-import pytest
 from unittest.mock import MagicMock, patch
+
 import numpy as np
+import pytest
 import torch
-from vieneu.standard import VieNeuTTS
+
 from vieneu.remote import RemoteVieNeuTTS
+from vieneu.standard import VieNeuTTS
+
 
 @pytest.fixture
 def mock_codec():

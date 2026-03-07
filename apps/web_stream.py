@@ -1,15 +1,17 @@
 
+import asyncio
+import io
 import os
 import time
-import asyncio
+import wave
+
 import numpy as np
+import uvicorn
 from fastapi import FastAPI
 from fastapi.responses import HTMLResponse, StreamingResponse
-import uvicorn
-from vieneu import Vieneu
-import io
-import wave
 from huggingface_hub import hf_hub_download
+
+from vieneu import Vieneu
 
 # ==========================================
 # CONFIG GGUF MODELS
@@ -42,9 +44,9 @@ tts = None
 def load_model_instance(model_key):
     global tts, current_model_id
     print(f"⏳ Loading Model: {model_key}...")
-    
+
     repo_id = ""
-    
+
     # Check if this is a preset model key
     if model_key in AVAILABLE_MODELS:
         repo_id = AVAILABLE_MODELS[model_key]["id"]
@@ -53,18 +55,18 @@ def load_model_instance(model_key):
         # Validation: Must contain 'gguf' (case-insensitive)
         if "gguf" not in model_key.lower():
             raise ValueError("Custom Model ID must contain 'gguf' (e.g. user/model-gguf)")
-        
+
         repo_id = model_key.strip()
         print(f"🔄 Custom Model Detected: {repo_id}")
 
     # Reload TTS
     try:
         new_tts = Vieneu(
-            mode='standard', 
+            mode='standard',
             backbone_repo=repo_id,
-            backbone_device="cpu", 
-            codec_repo="neuphonic/neucodec-onnx-decoder-int8", 
-            codec_device="cpu" 
+            backbone_device="cpu",
+            codec_repo="neuphonic/neucodec-onnx-decoder-int8",
+            codec_device="cpu"
         )
         tts = new_tts
         current_model_id = model_key
@@ -104,6 +106,8 @@ async def get_models():
     ]
 
 from pydantic import BaseModel
+
+
 class ModelRequest(BaseModel):
     model_key: str
 
@@ -124,7 +128,7 @@ async def get_voices():
              return [{"id": "error", "name": "Model not loaded yet"}]
 
         voices = tts.list_preset_voices()
-        
+
         if not voices:
              # Voices.json missing or empty
              return [{"id": "error_no_voices", "name": "⚠️ ERROR: No voices found! Please create voices.json in the model folder."}]
@@ -151,7 +155,7 @@ def float32_to_pcm16(audio_float):
 @app.get("/stream")
 async def stream_audio(text: str, voice_id: str = None):
     """Streaming Endpoint with Voice Support"""
-    
+
     voice_data = None
     if voice_id:
         try:
@@ -165,9 +169,9 @@ async def stream_audio(text: str, voice_id: str = None):
             wav_file.setnchannels(1)
             wav_file.setsampwidth(2)
             wav_file.setframerate(24000)
-            wav_file.setnframes(100_000_000) 
+            wav_file.setnframes(100_000_000)
         yield header.getvalue()
-        
+
         start = time.time()
         count = 0
         try:
@@ -176,8 +180,8 @@ async def stream_audio(text: str, voice_id: str = None):
                      print(f"⚡ First sound in {time.time() - start:.3f}s")
                 count += 1
                 yield float32_to_pcm16(chunk)
-                time.sleep(0.001) 
-                
+                time.sleep(0.001)
+
         except Exception as e:
             print(f"Error during inference: {e}")
 

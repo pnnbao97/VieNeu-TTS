@@ -1,5 +1,7 @@
 import pytest
-from vieneu_utils.phonemize_text import phonemize_with_dict, phonemize_batch
+
+from vieneu_utils.phonemize_text import phonemize_batch, phonemize_with_dict
+
 
 def test_phonemize_vietnamese():
     text = "Xin chào Việt Nam"

@@ -1,4 +1,5 @@
 import re
+
 from .num2vi import n2w, n2w_single
 from .symbols import vietnamese_re, vietnamese_without_num_re
 
@@ -137,7 +138,7 @@ def _expand_number_with_sep(num_str):
         parts = clean_num.split(",")
         if len(parts) == 2:
             return f"{n2w(parts[0])} phẩy {n2w(parts[1])}"
-    
+
     if "." in num_str:
         # Check if it's a thousand separator format (e.g. 1.000, 1.000.000)
         # Vietnamese thousand sep is ALWAYS exactly 3 digits after the dot.
@@ -145,7 +146,7 @@ def _expand_number_with_sep(num_str):
             return n2w(num_str.replace(".", ""))
         # Otherwise treat dot as "chấm" (e.g. version 1.3 or English-style decimal 1.5)
         return " chấm ".join([n2w(p) for p in num_str.split(".")])
-        
+
     return n2w(num_str)
 
 def expand_measurement(text):
@@ -154,11 +155,11 @@ def expand_measurement(text):
         mag = m.group(2) if m.group(2) else ""
         expanded_num = _expand_number_with_sep(num)
         return f"{expanded_num} {mag} {full}".replace("  ", " ").strip()
-    
+
     for pattern, standalone_pattern, full in _MEASUREMENT_PATTERNS:
         # Case with number
         text = pattern.sub(lambda m, f=full: _repl(m, f), text)
-        
+
         # Standalone units
         if standalone_pattern:
             text = standalone_pattern.sub(f" {full} ", text)
@@ -170,11 +171,11 @@ def expand_currency(text):
         mag = m.group(2) if m.group(2) else ""
         expanded_num = _expand_number_with_sep(num)
         return f"{expanded_num} {mag} {full}".replace("  ", " ").strip()
-        
+
     text = RE_CURRENCY_PREFIX_USD.sub(lambda m: _repl(m, "đô la Mỹ"), text)
     text = RE_CURRENCY_SUFFIX_USD.sub(lambda m: _repl(m, "đô la Mỹ"), text)
     text = RE_PERCENTAGE.sub(lambda m: f"{_expand_number_with_sep(m.group(1))} phần trăm", text)
-    
+
     for pattern, full in _CURRENCY_PATTERNS:
         text = pattern.sub(lambda m, f=full: _repl(m, f), text)
     return text
@@ -224,7 +225,7 @@ def expand_standalone_letters(text):
         if char in _letter_key_vi:
             return f" {_letter_key_vi[char]}{dot} "
         return m.group(0)
-    
+
     return RE_STANDALONE_LETTER.sub(_repl_letter, text)
 
 def normalize_urls(text):
@@ -329,7 +330,7 @@ def normalize_acronyms(text):
                 if any(c.isdigit() for c in word):
                     if word.upper() == "B2B":
                         return "__START_EN__b two b__END_EN__"
-                    
+
                     res = []
                     for c in word.lower():
                         if c.isdigit():
@@ -382,7 +383,7 @@ def normalize_others(text):
     # 1. Expand acronym exceptions and basic patterns
     for pattern, v in _ACRONYMS_EXCEPTIONS_RE:
         text = pattern.sub(v, text)
-    
+
     text = normalize_urls(text)
     text = normalize_emails(text)
     text = normalize_slashes(text)
@@ -391,7 +392,7 @@ def normalize_others(text):
     text = RE_ROMAN_NUMBER.sub(expand_roman, text)
     text = RE_LETTER.sub(expand_letter, text)
     text = expand_alphanumeric(text)
-    
+
     # 3. Clean quotes and expand general symbols
     text = RE_CLEAN_QUOTES.sub('', text)
     text = expand_symbols(text)
@@ -410,8 +411,8 @@ def normalize_others(text):
 
     # 7. Final cleanup of any remaining unsupported characters
     text = RE_CLEAN_OTHERS.sub(' ', text)
-    
+
     # Restore internal <en> tags
     text = text.replace('__START_EN__', '<en>').replace('__END_EN__', '</en>')
-    
+
     return text

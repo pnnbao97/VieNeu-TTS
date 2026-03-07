@@ -1,0 +1,14 @@
+line-length = 120
+target-version = "py310"
+
+[lint]
+select = ["E", "F", "I", "W"]
+ignore = [
+    "E701", # Multiple statements on one line (colon)
+    "E741", # Ambiguous variable name (l)
+    "E501", # Line too long
+    "F401", # Unused imports
+    "F841", # Unused variables
+    "F811", # Redefinition of unused variable
+    "E402", # Module level import not at top of file
+]

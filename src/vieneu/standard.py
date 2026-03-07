@@ -1,16 +1,19 @@
+import gc
+import logging
 import os
 import platform
 from pathlib import Path
-from typing import Optional, Union, List, Generator, Any, Dict
+from typing import Any, Dict, Generator, List, Optional, Union
+
 import numpy as np
 import torch
-import gc
-import logging
+from neucodec import DistillNeuCodec, NeuCodec
+
+from vieneu_utils.core_utils import join_audio_chunks, split_text_into_chunks
+from vieneu_utils.phonemize_text import phonemize_batch, phonemize_with_dict
+
 from .base import BaseVieneuTTS
-from .utils import extract_speech_ids, _linear_overlap_add
-from vieneu_utils.phonemize_text import phonemize_with_dict, phonemize_batch
-from vieneu_utils.core_utils import split_text_into_chunks, join_audio_chunks
-from neucodec import NeuCodec, DistillNeuCodec
+from .utils import _linear_overlap_add, extract_speech_ids
 
 logger = logging.getLogger("Vieneu.Standard")
 
@@ -107,7 +110,7 @@ class VieNeuTTS(BaseVieneuTTS):
             )
             self._is_quantized_model = True
         else:
-            from transformers import AutoTokenizer, AutoModelForCausalLM
+            from transformers import AutoModelForCausalLM, AutoTokenizer
             self.tokenizer = AutoTokenizer.from_pretrained(backbone_repo, token=hf_token)
 
             # Configure tokenizer for batching

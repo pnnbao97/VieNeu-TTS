@@ -1,6 +1,8 @@
 import numpy as np
 import pytest
-from vieneu_utils.core_utils import split_text_into_chunks, join_audio_chunks
+
+from vieneu_utils.core_utils import join_audio_chunks, split_text_into_chunks
+
 
 def test_split_text_into_chunks():
     text = "Đây là một câu ngắn. Đây là một câu dài hơn một chút để kiểm tra xem nó có bị chia ra không nếu chúng ta đặt giới hạn ký tự thấp."

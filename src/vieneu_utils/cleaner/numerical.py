@@ -1,4 +1,5 @@
 import re
+
 from .num2vi import n2w, n2w_single
 from .symbols import vietnamese_set
 
