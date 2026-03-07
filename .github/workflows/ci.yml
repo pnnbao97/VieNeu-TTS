@@ -74,7 +74,11 @@ jobs:
           python-version: ${{ matrix.python-version }}
 
       - name: Install VieNeu SDK (Base)
-        run: uv pip install .
+        run: |
+          uv pip install . \
+            --extra-index-url https://abetlen.github.io/llama-cpp-python/whl/metal/ \
+            --extra-index-url https://pnnbao97.github.io/llama-cpp-python-v0.3.16/cpu/ \
+            --no-cache-dir
 
       - name: Verify Import
         run: python -c "import vieneu; print('VieNeu SDK imported successfully')"

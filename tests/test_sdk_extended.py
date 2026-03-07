@@ -91,15 +91,15 @@ def test_fast_infer_batch_phonemize_called(mock_torch_backbone):
     """Test that FastVieNeuTTS.infer_batch calls phonemize_batch."""
     from vieneu.fast import FastVieNeuTTS
 
+    mock_pipeline_instance = MagicMock()
+    mock_pipeline_instance.return_value = [MagicMock(text="codes")]
+    mock_lmdeploy = MagicMock()
+    mock_lmdeploy.pipeline.return_value = mock_pipeline_instance
+
     with (
-        patch("lmdeploy.pipeline", create=True) as mock_pipeline,
-        patch("lmdeploy.GenerationConfig", create=True),
+        patch.dict("sys.modules", {"lmdeploy": mock_lmdeploy}),
         patch.object(FastVieNeuTTS, "_warmup_model"),
     ):
-        mock_pipeline_instance = MagicMock()
-        mock_pipeline.return_value = mock_pipeline_instance
-        mock_pipeline_instance.return_value = [MagicMock(text="codes")]
-
         tts = FastVieNeuTTS(backbone_device="cuda")
 
         texts = ["Text 1", "Text 2"]
@@ -133,14 +133,17 @@ def test_remote_parallel_chunking():
 
 def test_lora_loading_logic(mock_torch_backbone):
     """Test LoRA adapter loading and unloading."""
-
-    with patch.object(VieNeuTTS, "_warmup_model"), patch("peft.PeftModel.from_pretrained", create=True) as mock_peft:
+    mock_peft = MagicMock()
+    with (
+        patch.object(VieNeuTTS, "_warmup_model"),
+        patch.dict("sys.modules", {"peft": mock_peft}),
+    ):
         tts = VieNeuTTS(backbone_repo="dummy", backbone_device="cpu")
 
         # Load LoRA
         tts.load_lora_adapter("lora_repo")
         assert tts._lora_loaded is True
-        mock_peft.assert_called_once()
+        mock_peft.PeftModel.from_pretrained.assert_called_once()
 
         # Unload LoRA
         with patch.object(tts.backbone, "unload", return_value=mock_torch_backbone["model"]):
