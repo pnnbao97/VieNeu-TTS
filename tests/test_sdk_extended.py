@@ -92,8 +92,8 @@ def test_fast_infer_batch_phonemize_called(mock_torch_backbone):
     from vieneu.fast import FastVieNeuTTS
 
     with (
-        patch("lmdeploy.pipeline") as mock_pipeline,
-        patch("lmdeploy.GenerationConfig"),
+        patch("lmdeploy.pipeline", create=True) as mock_pipeline,
+        patch("lmdeploy.GenerationConfig", create=True),
         patch.object(FastVieNeuTTS, "_warmup_model"),
     ):
         mock_pipeline_instance = MagicMock()
@@ -134,7 +134,7 @@ def test_remote_parallel_chunking():
 def test_lora_loading_logic(mock_torch_backbone):
     """Test LoRA adapter loading and unloading."""
 
-    with patch.object(VieNeuTTS, "_warmup_model"), patch("peft.PeftModel.from_pretrained") as mock_peft:
+    with patch.object(VieNeuTTS, "_warmup_model"), patch("peft.PeftModel.from_pretrained", create=True) as mock_peft:
         tts = VieNeuTTS(backbone_repo="dummy", backbone_device="cpu")
 
         # Load LoRA

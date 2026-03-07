@@ -102,6 +102,7 @@ dev = [
     "pytest",
     "pytest-asyncio",
     "ruff",
+    "peft",
 ]
 gpu = [
     "lmdeploy; sys_platform != 'darwin'",
