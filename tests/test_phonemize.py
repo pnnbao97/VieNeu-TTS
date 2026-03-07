@@ -1,5 +1,6 @@
 from vieneu_utils.phonemize_text import phonemize_with_dict, phonemize_batch
 
+
 def test_phonemize_vietnamese():
     text = "Xin chào Việt Nam"
     # We don't check exact phonemes because they depend on espeak version,
@@ -7,6 +8,7 @@ def test_phonemize_vietnamese():
     phonemes = phonemize_with_dict(text)
     assert isinstance(phonemes, str)
     assert len(phonemes) > 0
+
 
 def test_phonemize_english_tag():
     text = "Học <en>machine learning</en> rất hay"
@@ -17,11 +19,13 @@ def test_phonemize_english_tag():
     # usually espeak uses symbols like məˈʃiːn
     assert any(c in phonemes for c in "əˈʃ")
 
+
 def test_phonemize_with_custom_dict():
     custom_dict = {"robot": "ro-bot-phi-diệu"}
     text = "Tôi là robot"
     phonemes = phonemize_with_dict(text, phoneme_dict=custom_dict)
     assert "ro-bot-phi-diệu" in phonemes
+
 
 def test_phonemize_batch_consistency():
     texts = ["Xin chào", "Việt Nam", "Chào <en>world</en>"]

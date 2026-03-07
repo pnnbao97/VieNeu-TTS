@@ -10,6 +10,7 @@ logger = logging.getLogger("Vieneu.Utils")
 # Persistent cache for weights to avoid recomputing if frame_length is constant
 _WEIGHT_CACHE: Dict[int, np.ndarray] = {}
 
+
 def _linear_overlap_add(frames: List[np.ndarray], stride: int) -> np.ndarray:
     """
     Perform linear overlap-add on a list of audio frames.
@@ -58,6 +59,7 @@ def _linear_overlap_add(frames: List[np.ndarray], stride: int) -> np.ndarray:
     safe_sum_weight = np.where(sum_weight > 0, sum_weight, 1.0)
     return out / safe_sum_weight
 
+
 def _compile_codec_with_triton(codec: Any) -> bool:
     """
     Compile codec with Triton for faster decoding (Windows/Linux compatible).
@@ -71,13 +73,11 @@ def _compile_codec_with_triton(codec: Any) -> bool:
     try:
         import triton
 
-        if hasattr(codec, 'dec') and hasattr(codec.dec, 'resblocks'):
+        if hasattr(codec, "dec") and hasattr(codec.dec, "resblocks"):
             if len(codec.dec.resblocks) > 2:
                 # Use torch.compile with triton-friendly backend
                 codec.dec.resblocks[2].forward = torch.compile(
-                    codec.dec.resblocks[2].forward,
-                    mode="reduce-overhead",
-                    dynamic=True
+                    codec.dec.resblocks[2].forward, mode="reduce-overhead", dynamic=True
                 )
                 logger.info("   ✅ Triton compilation enabled for codec")
         return True
@@ -89,8 +89,10 @@ def _compile_codec_with_triton(codec: Any) -> bool:
         logger.error(f"   ⚠️ Triton compilation failed: {e}")
         return False
 
+
 # Pre-compile regex for speech token extraction
 RE_SPEECH_TOKEN = re.compile(r"<\|speech_(\d+)\|>")
+
 
 def extract_speech_ids(codes_str: str) -> List[int]:
     """Extract speech token IDs from a string using regex."""

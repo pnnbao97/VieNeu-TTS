@@ -13,6 +13,7 @@ from neucodec import NeuCodec, DistillNeuCodec
 
 logger = logging.getLogger("Vieneu.Fast")
 
+
 class FastVieNeuTTS(BaseVieneuTTS):
     """
     GPU-optimized VieNeu-TTS using LMDeploy TurbomindEngine.
@@ -63,26 +64,29 @@ class FastVieNeuTTS(BaseVieneuTTS):
         logger.info(f"Loading backbone with LMDeploy from: {repo}")
         if hf_token:
             import os
+
             os.environ["HF_TOKEN"] = hf_token
 
         try:
             from lmdeploy import pipeline, TurbomindEngineConfig, GenerationConfig
         except ImportError as e:
-            raise ImportError(
-                "Failed to import `lmdeploy`. Install with: pip install vieneu[gpu]"
-            ) from e
+            raise ImportError("Failed to import `lmdeploy`. Install with: pip install vieneu[gpu]") from e
 
         backend_config = TurbomindEngineConfig(
             cache_max_entry_count=memory_util,
             tp=tp,
             enable_prefix_caching=enable_prefix_caching,
-            dtype='bfloat16',
-            quant_policy=quant_policy
+            dtype="bfloat16",
+            quant_policy=quant_policy,
         )
         self.backbone = pipeline(repo, backend_config=backend_config)
         self.gen_config = GenerationConfig(
-            top_p=0.95, top_k=50, temperature=1.0, max_new_tokens=2048,
-            do_sample=True, min_new_tokens=40,
+            top_p=0.95,
+            top_k=50,
+            temperature=1.0,
+            max_new_tokens=2048,
+            do_sample=True,
+            min_new_tokens=40,
         )
 
     def _load_codec(self, codec_repo, codec_device, enable_triton):
@@ -138,8 +142,20 @@ class FastVieNeuTTS(BaseVieneuTTS):
                 recon = self.codec.decode_code(codes).cpu().numpy()
         return recon[0, 0, :]
 
-
-    def infer(self, text: str, ref_audio: Optional[Union[str, Path]] = None, ref_codes: Optional[Union[np.ndarray, torch.Tensor]] = None, ref_text: Optional[str] = None, max_chars: int = 256, silence_p: float = 0.15, crossfade_p: float = 0.0, voice: Optional[Dict[str, Any]] = None, temperature: float = 1.0, top_k: int = 50, skip_normalize: bool = False) -> np.ndarray:
+    def infer(
+        self,
+        text: str,
+        ref_audio: Optional[Union[str, Path]] = None,
+        ref_codes: Optional[Union[np.ndarray, torch.Tensor]] = None,
+        ref_text: Optional[str] = None,
+        max_chars: int = 256,
+        silence_p: float = 0.15,
+        crossfade_p: float = 0.0,
+        voice: Optional[Dict[str, Any]] = None,
+        temperature: float = 1.0,
+        top_k: int = 50,
+        skip_normalize: bool = False,
+    ) -> np.ndarray:
 
         ref_codes, ref_text = self._resolve_ref_voice(voice, ref_audio, ref_codes, ref_text)
 
@@ -159,12 +175,26 @@ class FastVieNeuTTS(BaseVieneuTTS):
             wav = self._decode(responses[0].text)
             wav = self._apply_watermark(wav)
         else:
-            all_wavs = self.infer_batch(chunks, ref_codes, ref_text, voice=voice, temperature=temperature, top_k=top_k, skip_normalize=True)
+            all_wavs = self.infer_batch(
+                chunks, ref_codes, ref_text, voice=voice, temperature=temperature, top_k=top_k, skip_normalize=True
+            )
             wav = join_audio_chunks(all_wavs, self.sample_rate, silence_p, crossfade_p)
 
         return wav
 
-    def infer_batch(self, texts: List[str], ref_audio: Optional[Union[str, Path]] = None, ref_codes: Optional[Union[np.ndarray, torch.Tensor]] = None, ref_text: Optional[str] = None, voice: Optional[Dict[str, Any]] = None, temperature: float = 1.0, top_k: int = 50, skip_normalize: bool = False, apply_watermark: bool = True, max_batch_size: Optional[int] = None) -> List[np.ndarray]:
+    def infer_batch(
+        self,
+        texts: List[str],
+        ref_audio: Optional[Union[str, Path]] = None,
+        ref_codes: Optional[Union[np.ndarray, torch.Tensor]] = None,
+        ref_text: Optional[str] = None,
+        voice: Optional[Dict[str, Any]] = None,
+        temperature: float = 1.0,
+        top_k: int = 50,
+        skip_normalize: bool = False,
+        apply_watermark: bool = True,
+        max_batch_size: Optional[int] = None,
+    ) -> List[np.ndarray]:
 
         if not skip_normalize:
             texts = [self.normalizer.normalize(t) for t in texts]
@@ -184,8 +214,10 @@ class FastVieNeuTTS(BaseVieneuTTS):
         for i in range(0, len(texts), max_batch_size):
             batch_texts = texts[i : i + max_batch_size]
             batch_phonemes = chunk_phonemes[i : i + max_batch_size]
-            prompts = [self._format_prompt(ref_codes, ref_text, text, ref_phonemes=ref_phonemes, input_phonemes=ph)
-                      for text, ph in zip(batch_texts, batch_phonemes)]
+            prompts = [
+                self._format_prompt(ref_codes, ref_text, text, ref_phonemes=ref_phonemes, input_phonemes=ph)
+                for text, ph in zip(batch_texts, batch_phonemes)
+            ]
             responses = self.backbone(prompts, gen_config=self.gen_config, do_preprocess=False)
             batch_codes = [response.text for response in responses]
             batch_wavs = [self._decode(codes) for codes in batch_codes]
@@ -194,7 +226,18 @@ class FastVieNeuTTS(BaseVieneuTTS):
             all_wavs.extend(batch_wavs)
         return all_wavs
 
-    def infer_stream(self, text: str, ref_audio: Optional[Union[str, Path]] = None, ref_codes: Optional[Union[np.ndarray, torch.Tensor]] = None, ref_text: Optional[str] = None, max_chars: int = 256, voice: Optional[Dict[str, Any]] = None, temperature: float = 1.0, top_k: int = 50, skip_normalize: bool = False) -> Generator[np.ndarray, None, None]:
+    def infer_stream(
+        self,
+        text: str,
+        ref_audio: Optional[Union[str, Path]] = None,
+        ref_codes: Optional[Union[np.ndarray, torch.Tensor]] = None,
+        ref_text: Optional[str] = None,
+        max_chars: int = 256,
+        voice: Optional[Dict[str, Any]] = None,
+        temperature: float = 1.0,
+        top_k: int = 50,
+        skip_normalize: bool = False,
+    ) -> Generator[np.ndarray, None, None]:
 
         ref_codes, ref_text = self._resolve_ref_voice(voice, ref_audio, ref_codes, ref_text)
 
@@ -208,7 +251,9 @@ class FastVieNeuTTS(BaseVieneuTTS):
         for chunk in chunks:
             yield from self._infer_stream_single(chunk, ref_codes, ref_text)
 
-    def _infer_stream_single(self, text: str, ref_codes: Union[np.ndarray, torch.Tensor, List[int]], ref_text: str) -> Generator[np.ndarray, None, None]:
+    def _infer_stream_single(
+        self, text: str, ref_codes: Union[np.ndarray, torch.Tensor, List[int]], ref_text: str
+    ) -> Generator[np.ndarray, None, None]:
         if isinstance(ref_codes, (torch.Tensor, np.ndarray)):
             ref_codes_list = ref_codes.flatten().tolist()
         else:
@@ -222,15 +267,27 @@ class FastVieNeuTTS(BaseVieneuTTS):
 
         for response in self.backbone.stream_infer([prompt], gen_config=self.gen_config, do_preprocess=False):
             output_str = response.text
-            new_tokens = output_str[len("".join(token_cache[len(ref_codes_list):])):] if len(token_cache) > len(ref_codes_list) else output_str
+            new_tokens = (
+                output_str[len("".join(token_cache[len(ref_codes_list) :])) :]
+                if len(token_cache) > len(ref_codes_list)
+                else output_str
+            )
             if new_tokens:
                 token_cache.append(new_tokens)
 
             if len(token_cache[n_decoded_tokens:]) >= self.streaming_frames_per_chunk + self.streaming_lookforward:
                 tokens_start = max(n_decoded_tokens - self.streaming_lookback - self.streaming_overlap_frames, 0)
-                tokens_end = n_decoded_tokens + self.streaming_frames_per_chunk + self.streaming_lookforward + self.streaming_overlap_frames
+                tokens_end = (
+                    n_decoded_tokens
+                    + self.streaming_frames_per_chunk
+                    + self.streaming_lookforward
+                    + self.streaming_overlap_frames
+                )
                 sample_start = (n_decoded_tokens - tokens_start) * self.hop_length
-                sample_end = sample_start + (self.streaming_frames_per_chunk + 2 * self.streaming_overlap_frames) * self.hop_length
+                sample_end = (
+                    sample_start
+                    + (self.streaming_frames_per_chunk + 2 * self.streaming_overlap_frames) * self.hop_length
+                )
                 curr_codes = token_cache[tokens_start:tokens_end]
                 recon = self._decode("".join(curr_codes))
                 recon = self._apply_watermark(recon)
@@ -246,8 +303,12 @@ class FastVieNeuTTS(BaseVieneuTTS):
 
         remaining_tokens = len(token_cache) - n_decoded_tokens
         if remaining_tokens > 0:
-            tokens_start = max(len(token_cache) - (self.streaming_lookback + self.streaming_overlap_frames + remaining_tokens), 0)
-            sample_start = (len(token_cache) - tokens_start - remaining_tokens - self.streaming_overlap_frames) * self.hop_length
+            tokens_start = max(
+                len(token_cache) - (self.streaming_lookback + self.streaming_overlap_frames + remaining_tokens), 0
+            )
+            sample_start = (
+                len(token_cache) - tokens_start - remaining_tokens - self.streaming_overlap_frames
+            ) * self.hop_length
             curr_codes = token_cache[tokens_start:]
             recon = self._decode("".join(curr_codes))
             recon = self._apply_watermark(recon)
@@ -264,9 +325,9 @@ class FastVieNeuTTS(BaseVieneuTTS):
 
     def get_optimization_stats(self) -> Dict[str, Any]:
         return {
-            'triton_enabled': self._triton_enabled,
-            'max_batch_size': self.max_batch_size,
-            'cached_references': len(self._ref_cache),
-            'active_sessions': len(self.stored_dict),
-            'prefix_caching': True,
+            "triton_enabled": self._triton_enabled,
+            "max_batch_size": self.max_batch_size,
+            "cached_references": len(self._ref_cache),
+            "active_sessions": len(self.stored_dict),
+            "prefix_caching": True,
         }

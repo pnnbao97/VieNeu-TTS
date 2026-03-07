@@ -7,13 +7,15 @@ from vieneu.remote import RemoteVieNeuTTS
 from vieneu_utils.phonemize_text import PhonemeDB
 import sqlite3
 
+
 @pytest.fixture
 def mock_torch_backbone():
-    with patch("transformers.AutoTokenizer.from_pretrained") as mock_tok, \
-         patch("transformers.AutoModelForCausalLM.from_pretrained") as mock_model, \
-         patch("neucodec.NeuCodec.from_pretrained") as mock_codec, \
-         patch("neucodec.DistillNeuCodec.from_pretrained") as mock_distill_codec:
-
+    with (
+        patch("transformers.AutoTokenizer.from_pretrained") as mock_tok,
+        patch("transformers.AutoModelForCausalLM.from_pretrained") as mock_model,
+        patch("neucodec.NeuCodec.from_pretrained") as mock_codec,
+        patch("neucodec.DistillNeuCodec.from_pretrained") as mock_distill_codec,
+    ):
         tokenizer = MagicMock()
         tokenizer.pad.return_value = {"input_ids": torch.zeros((2, 10), dtype=torch.long)}
         tokenizer.convert_tokens_to_ids.return_value = 100
@@ -34,6 +36,7 @@ def mock_torch_backbone():
         mock_distill_codec.return_value = codec
 
         yield {"tokenizer": tokenizer, "model": model, "codec": codec}
+
 
 def test_sqlite_chunking():
     """Test that PhonemeDB.lookup_batch handles more than 999 words by chunking."""
@@ -56,41 +59,43 @@ def test_sqlite_chunking():
     assert "word_0" in merged
     assert "word_999" in merged
 
+
 def test_base_encode_reference_device(mock_torch_backbone):
     """Test BaseVieneuTTS.encode_reference moves tensor to correct device."""
 
-    with patch("librosa.load", return_value=(np.zeros(16000), 16000)), \
-         patch.object(VieNeuTTS, '_warmup_model'):
+    with patch("librosa.load", return_value=(np.zeros(16000), 16000)), patch.object(VieNeuTTS, "_warmup_model"):
         tts = VieNeuTTS(backbone_repo="dummy", backbone_device="cpu")
         tts.codec.device = torch.device("cpu")
 
-        with patch.object(torch.Tensor, 'to', wraps=torch.zeros(1).to) as mock_to:
+        with patch.object(torch.Tensor, "to", wraps=torch.zeros(1).to) as mock_to:
             tts.encode_reference("dummy.wav")
             # Verify .to() was called to move the tensor to codec device
             mock_to.assert_called()
 
+
 def test_standard_true_batching(mock_torch_backbone):
     """Test that VieNeuTTS.infer_batch uses true batch generation for Torch backend."""
 
-    with patch.object(VieNeuTTS, '_warmup_model'), \
-         patch("vieneu.standard.phonemize_batch", return_value=["p1", "p2"]):
+    with patch.object(VieNeuTTS, "_warmup_model"), patch("vieneu.standard.phonemize_batch", return_value=["p1", "p2"]):
         tts = VieNeuTTS(backbone_repo="dummy", backbone_device="cpu")
-        tts._is_quantized_model = False # Force torch backend
+        tts._is_quantized_model = False  # Force torch backend
 
         texts = ["Text 1", "Text 2"]
-        with patch.object(tts, '_decode', return_value=np.zeros(1000)):
+        with patch.object(tts, "_decode", return_value=np.zeros(1000)):
             results = tts.infer_batch(texts, ref_codes=[1], ref_text="ref")
 
             assert len(results) == 2
+
 
 def test_fast_infer_batch_phonemize_called(mock_torch_backbone):
     """Test that FastVieNeuTTS.infer_batch calls phonemize_batch."""
     from vieneu.fast import FastVieNeuTTS
 
-    with patch("lmdeploy.pipeline") as mock_pipeline, \
-         patch("lmdeploy.GenerationConfig"), \
-         patch.object(FastVieNeuTTS, '_warmup_model'):
-
+    with (
+        patch("lmdeploy.pipeline") as mock_pipeline,
+        patch("lmdeploy.GenerationConfig"),
+        patch.object(FastVieNeuTTS, "_warmup_model"),
+    ):
         mock_pipeline_instance = MagicMock()
         mock_pipeline.return_value = mock_pipeline_instance
         mock_pipeline_instance.return_value = [MagicMock(text="codes")]
@@ -98,12 +103,15 @@ def test_fast_infer_batch_phonemize_called(mock_torch_backbone):
         tts = FastVieNeuTTS(backbone_device="cuda")
 
         texts = ["Text 1", "Text 2"]
-        with patch("vieneu.fast.phonemize_batch", return_value=["p1", "p2"]) as mock_ph_batch, \
-             patch.object(tts, '_decode', return_value=np.zeros(1000)):
+        with (
+            patch("vieneu.fast.phonemize_batch", return_value=["p1", "p2"]) as mock_ph_batch,
+            patch.object(tts, "_decode", return_value=np.zeros(1000)),
+        ):
             tts.infer_batch(texts, ref_codes=[1], ref_text="ref")
             mock_ph_batch.assert_called_once()
             # Verify LMDeploy pipeline was called
             mock_pipeline_instance.assert_called()
+
 
 def test_remote_parallel_chunking():
     """Test that RemoteVieNeuTTS.infer uses parallel async processing for multi-chunks."""
@@ -111,21 +119,22 @@ def test_remote_parallel_chunking():
         tts = RemoteVieNeuTTS(api_base="http://mock", model_name="mock")
 
         # Force 2 chunks
-        with patch("vieneu.remote.split_text_into_chunks", return_value=["chunk1", "chunk2"]), \
-             patch.object(RemoteVieNeuTTS, 'infer_async', return_value=np.zeros(2000)) as mock_async, \
-             patch.object(RemoteVieNeuTTS, '_resolve_ref_voice', return_value=(torch.zeros(10), "ref")):
-
+        with (
+            patch("vieneu.remote.split_text_into_chunks", return_value=["chunk1", "chunk2"]),
+            patch.object(RemoteVieNeuTTS, "infer_async", return_value=np.zeros(2000)) as mock_async,
+            patch.object(RemoteVieNeuTTS, "_resolve_ref_voice", return_value=(torch.zeros(10), "ref")),
+        ):
             res = tts.infer("Long text that splits")
             assert mock_async.called
             # Should be called once via asyncio.run(self.infer_async(...))
             # which then parallelizes internal chunks
             mock_async.assert_called_once()
 
+
 def test_lora_loading_logic(mock_torch_backbone):
     """Test LoRA adapter loading and unloading."""
 
-    with patch.object(VieNeuTTS, '_warmup_model'), \
-         patch("peft.PeftModel.from_pretrained") as mock_peft:
+    with patch.object(VieNeuTTS, "_warmup_model"), patch("peft.PeftModel.from_pretrained") as mock_peft:
         tts = VieNeuTTS(backbone_repo="dummy", backbone_device="cpu")
 
         # Load LoRA
@@ -134,6 +143,6 @@ def test_lora_loading_logic(mock_torch_backbone):
         mock_peft.assert_called_once()
 
         # Unload LoRA
-        with patch.object(tts.backbone, 'unload', return_value=mock_torch_backbone["model"]):
+        with patch.object(tts.backbone, "unload", return_value=mock_torch_backbone["model"]):
             tts.unload_lora_adapter()
             assert tts._lora_loaded is False

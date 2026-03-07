@@ -11,6 +11,7 @@ from vieneu_utils.normalize_text import VietnameseTTSNormalizer
 # Configure logging
 logger = logging.getLogger("Vieneu")
 
+
 class BaseVieneuTTS(ABC):
     """
     Abstract base class for VieNeu-TTS implementations.
@@ -36,12 +37,15 @@ class BaseVieneuTTS(ABC):
         """Initialize optional audio watermarker."""
         try:
             import perth
+
             self.watermarker = perth.PerthImplicitWatermarker()
             logger.info("🔒 Audio watermarking initialized (Perth)")
         except (ImportError, AttributeError):
             self.watermarker = None
 
-    def _load_voices(self, backbone_repo: Optional[str], hf_token: Optional[str] = None, clear_existing: bool = False) -> None:
+    def _load_voices(
+        self, backbone_repo: Optional[str], hf_token: Optional[str] = None, clear_existing: bool = False
+    ) -> None:
         """Unified voice loading for Local and Remote paths."""
         if not backbone_repo:
             return
@@ -58,7 +62,7 @@ class BaseVieneuTTS(ABC):
                 self._load_voices_from_file(json_path, clear_existing=clear_existing)
             else:
                 if clear_existing:
-                     self._preset_voices.clear()
+                    self._preset_voices.clear()
                 logger.warning(f"Validation Warning: Local path '{backbone_repo}' missing 'voices.json'.")
                 logger.warning("Falling back to Custom Voice Cloning mode.")
         else:
@@ -79,7 +83,7 @@ class BaseVieneuTTS(ABC):
                 logger.error(f"Voice file not found: {file_path}")
                 return
 
-            with open(file_path, 'r', encoding='utf-8') as f:
+            with open(file_path, "r", encoding="utf-8") as f:
                 try:
                     data = json.load(f)
                 except json.JSONDecodeError as e:
@@ -107,22 +111,13 @@ class BaseVieneuTTS(ABC):
         voices_file = None
         try:
             # 1. Try normal download (checks for updates from server)
-            voices_file = hf_hub_download(
-                repo_id=repo_id,
-                filename="voices.json",
-                token=hf_token,
-                repo_type="model"
-            )
+            voices_file = hf_hub_download(repo_id=repo_id, filename="voices.json", token=hf_token, repo_type="model")
         except Exception:
             # 2. Network error? Try to use cached version if available
             logger.warning("Network check failed for voices.json. Trying local cache...")
             try:
                 voices_file = hf_hub_download(
-                    repo_id=repo_id,
-                    filename="voices.json",
-                    token=hf_token,
-                    repo_type="model",
-                    local_files_only=True
+                    repo_id=repo_id, filename="voices.json", token=hf_token, repo_type="model", local_files_only=True
                 )
                 logger.info("✅ Using cached voices.json")
             except Exception:
@@ -136,10 +131,7 @@ class BaseVieneuTTS(ABC):
 
     def list_preset_voices(self) -> List[tuple[str, str]]:
         """List available preset voices as (description, id)."""
-        return [
-            (v.get("description", k) if isinstance(v, dict) else str(v), k)
-            for k, v in self._preset_voices.items()
-        ]
+        return [(v.get("description", k) if isinstance(v, dict) else str(v), k) for k, v in self._preset_voices.items()]
 
     def get_preset_voice(self, voice_name: Optional[str] = None) -> Dict[str, Any]:
         """
@@ -175,12 +167,14 @@ class BaseVieneuTTS(ABC):
         """
         if ref_text not in self._ref_phoneme_cache:
             from vieneu_utils.phonemize_text import phonemize_with_dict
+
             self._ref_phoneme_cache[ref_text] = phonemize_with_dict(ref_text)
         return self._ref_phoneme_cache[ref_text]
 
     def save(self, audio: np.ndarray, output_path: Union[str, Path]) -> None:
         """Save audio waveform to a file."""
         import soundfile as sf
+
         sf.write(str(output_path), audio, self.sample_rate)
 
     def encode_reference(self, ref_audio_path: Union[str, Path]) -> torch.Tensor:
@@ -194,6 +188,7 @@ class BaseVieneuTTS(ABC):
             torch.Tensor: Encoded codes.
         """
         import librosa
+
         wav, _ = librosa.load(ref_audio_path, sr=16000, mono=True)
         wav_tensor = torch.from_numpy(wav).float().unsqueeze(0).unsqueeze(0)  # [1, 1, T]
 
@@ -216,6 +211,7 @@ class BaseVieneuTTS(ABC):
             np.ndarray: Decoded audio waveform.
         """
         from .utils import extract_speech_ids
+
         speech_ids = extract_speech_ids(codes_str)
 
         if len(speech_ids) == 0:
@@ -238,7 +234,6 @@ class BaseVieneuTTS(ABC):
                 if hasattr(recon, "numpy"):
                     recon = recon.numpy()
 
-
         return recon[0, 0, :]
 
     def _resolve_ref_voice(
@@ -246,20 +241,20 @@ class BaseVieneuTTS(ABC):
         voice: Optional[Dict[str, Any]] = None,
         ref_audio: Optional[Union[str, Path]] = None,
         ref_codes: Optional[Union[np.ndarray, torch.Tensor]] = None,
-        ref_text: Optional[str] = None
+        ref_text: Optional[str] = None,
     ) -> tuple[Union[np.ndarray, torch.Tensor], str]:
         """Resolve reference voice codes and text."""
         if voice is not None:
-            ref_codes = voice.get('codes', ref_codes)
-            ref_text = voice.get('text', ref_text)
+            ref_codes = voice.get("codes", ref_codes)
+            ref_text = voice.get("text", ref_text)
 
         if ref_audio is not None and ref_codes is None:
             ref_codes = self.encode_reference(ref_audio)
         elif self._default_voice and (ref_codes is None or ref_text is None):
             try:
                 voice_data = self.get_preset_voice(None)
-                ref_codes = voice_data['codes']
-                ref_text = voice_data['text']
+                ref_codes = voice_data["codes"]
+                ref_text = voice_data["text"]
             except Exception:
                 pass
 
@@ -280,7 +275,7 @@ class BaseVieneuTTS(ABC):
         ref_text: str,
         input_text: str,
         ref_phonemes: Optional[str] = None,
-        input_phonemes: Optional[str] = None
+        input_phonemes: Optional[str] = None,
     ) -> str:
         """
         Format the prompt for the TTS model.
@@ -319,7 +314,7 @@ class BaseVieneuTTS(ABC):
         """Release resources."""
         pass
 
-    def __enter__(self) -> 'BaseVieneuTTS':
+    def __enter__(self) -> "BaseVieneuTTS":
         return self
 
     def __exit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -> None:

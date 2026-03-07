@@ -2,6 +2,7 @@ from .standard import VieNeuTTS
 from .fast import FastVieNeuTTS
 from .remote import RemoteVieNeuTTS
 
+
 def Vieneu(mode="standard", **kwargs):
     """
     Factory function for VieNeu-TTS.
@@ -21,8 +22,11 @@ def Vieneu(mode="standard", **kwargs):
         case "xpu":
             try:
                 from .core_xpu import XPUVieNeuTTS
+
                 return XPUVieNeuTTS(**kwargs)
             except Exception as e:
-                raise RuntimeError(f"Failed to load XPU backend. Ensure Intel GPU drivers and torch.xpu are installed: {e}") from e
+                raise RuntimeError(
+                    f"Failed to load XPU backend. Ensure Intel GPU drivers and torch.xpu are installed: {e}"
+                ) from e
         case _:
             return VieNeuTTS(**kwargs)

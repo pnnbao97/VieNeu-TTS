@@ -14,6 +14,7 @@ from neucodec import NeuCodec, DistillNeuCodec
 
 logger = logging.getLogger("Vieneu.Standard")
 
+
 class VieNeuTTS(BaseVieneuTTS):
     """
     Standard VieNeu-TTS implementation.
@@ -108,6 +109,7 @@ class VieNeuTTS(BaseVieneuTTS):
             self._is_quantized_model = True
         else:
             from transformers import AutoTokenizer, AutoModelForCausalLM
+
             self.tokenizer = AutoTokenizer.from_pretrained(backbone_repo, token=hf_token)
 
             # Configure tokenizer for batching
@@ -166,7 +168,7 @@ class VieNeuTTS(BaseVieneuTTS):
 
         logger.info(f"🎯 Loading LoRA adapter from: {lora_repo_id}")
 
-        if not hasattr(self, '_lora_loaded') or not self._lora_loaded:
+        if not hasattr(self, "_lora_loaded") or not self._lora_loaded:
             self._current_lora_repo = None
             self._lora_loaded = False
 
@@ -184,7 +186,7 @@ class VieNeuTTS(BaseVieneuTTS):
             raise RuntimeError(f"Failed to load LoRA adapter: {str(e)}") from e
 
     def unload_lora_adapter(self) -> bool:
-        if not getattr(self, '_lora_loaded', False):
+        if not getattr(self, "_lora_loaded", False):
             return False
 
         logger.info(f"   🔄 Unloading LoRA adapter: {self._current_lora_repo}")
@@ -201,7 +203,20 @@ class VieNeuTTS(BaseVieneuTTS):
             logger.error(f"   ⚠️ Error during unload: {e}")
             return False
 
-    def infer(self, text: str, ref_audio: Optional[Union[str, Path]] = None, ref_codes: Optional[Union[np.ndarray, torch.Tensor]] = None, ref_text: Optional[str] = None, max_chars: int = 256, silence_p: float = 0.15, crossfade_p: float = 0.0, voice: Optional[Dict[str, Any]] = None, temperature: float = 1.0, top_k: int = 50, skip_normalize: bool = False) -> np.ndarray:
+    def infer(
+        self,
+        text: str,
+        ref_audio: Optional[Union[str, Path]] = None,
+        ref_codes: Optional[Union[np.ndarray, torch.Tensor]] = None,
+        ref_text: Optional[str] = None,
+        max_chars: int = 256,
+        silence_p: float = 0.15,
+        crossfade_p: float = 0.0,
+        voice: Optional[Dict[str, Any]] = None,
+        temperature: float = 1.0,
+        top_k: int = 50,
+        skip_normalize: bool = False,
+    ) -> np.ndarray:
 
         ref_codes, ref_text = self._resolve_ref_voice(voice, ref_audio, ref_codes, ref_text)
 
@@ -230,12 +245,23 @@ class VieNeuTTS(BaseVieneuTTS):
             temperature=temperature,
             top_k=top_k,
             skip_normalize=True,
-            apply_watermark=False
+            apply_watermark=False,
         )
         final_wav = join_audio_chunks(all_wavs, self.sample_rate, silence_p, crossfade_p)
         return self._apply_watermark(final_wav)
 
-    def infer_batch(self, texts: List[str], ref_audio: Optional[Union[str, Path]] = None, ref_codes: Optional[Union[np.ndarray, torch.Tensor]] = None, ref_text: Optional[str] = None, voice: Optional[Dict[str, Any]] = None, temperature: float = 1.0, top_k: int = 50, skip_normalize: bool = False, apply_watermark: bool = True) -> List[np.ndarray]:
+    def infer_batch(
+        self,
+        texts: List[str],
+        ref_audio: Optional[Union[str, Path]] = None,
+        ref_codes: Optional[Union[np.ndarray, torch.Tensor]] = None,
+        ref_text: Optional[str] = None,
+        voice: Optional[Dict[str, Any]] = None,
+        temperature: float = 1.0,
+        top_k: int = 50,
+        skip_normalize: bool = False,
+        apply_watermark: bool = True,
+    ) -> List[np.ndarray]:
         ref_codes, ref_text = self._resolve_ref_voice(voice, ref_audio, ref_codes, ref_text)
 
         if not skip_normalize:
@@ -260,11 +286,7 @@ class VieNeuTTS(BaseVieneuTTS):
                 prompt_ids = self._apply_chat_template(ref_codes, ref_phonemes, phonemes)
                 batch_prompt_ids.append(torch.tensor(prompt_ids))
 
-            inputs = self.tokenizer.pad(
-                {"input_ids": batch_prompt_ids},
-                padding=True,
-                return_tensors="pt"
-            )
+            inputs = self.tokenizer.pad({"input_ids": batch_prompt_ids}, padding=True, return_tensors="pt")
             # Move all tensors to device
             inputs = {k: v.to(self.backbone.device) for k, v in inputs.items()}
 
@@ -292,7 +314,18 @@ class VieNeuTTS(BaseVieneuTTS):
 
         return all_wavs
 
-    def infer_stream(self, text: str, ref_audio: Optional[Union[str, Path]] = None, ref_codes: Optional[Union[np.ndarray, torch.Tensor]] = None, ref_text: Optional[str] = None, max_chars: int = 256, voice: Optional[Dict[str, Any]] = None, temperature: float = 1.0, top_k: int = 50, skip_normalize: bool = False) -> Generator[np.ndarray, None, None]:
+    def infer_stream(
+        self,
+        text: str,
+        ref_audio: Optional[Union[str, Path]] = None,
+        ref_codes: Optional[Union[np.ndarray, torch.Tensor]] = None,
+        ref_text: Optional[str] = None,
+        max_chars: int = 256,
+        voice: Optional[Dict[str, Any]] = None,
+        temperature: float = 1.0,
+        top_k: int = 50,
+        skip_normalize: bool = False,
+    ) -> Generator[np.ndarray, None, None]:
 
         ref_codes, ref_text = self._resolve_ref_voice(voice, ref_audio, ref_codes, ref_text)
 
@@ -316,7 +349,9 @@ class VieNeuTTS(BaseVieneuTTS):
                 wav = self._decode(output_str)
                 yield self._apply_watermark(wav)
 
-    def _apply_chat_template(self, ref_codes: Union[List[int], torch.Tensor, np.ndarray], ref_phonemes: str, chunk_phonemes: str) -> List[int]:
+    def _apply_chat_template(
+        self, ref_codes: Union[List[int], torch.Tensor, np.ndarray], ref_phonemes: str, chunk_phonemes: str
+    ) -> List[int]:
         if isinstance(ref_codes, (torch.Tensor, np.ndarray)):
             ref_codes_list = ref_codes.flatten().tolist()
         else:
@@ -335,7 +370,7 @@ class VieNeuTTS(BaseVieneuTTS):
         ids = self.tokenizer.encode(chat)
 
         text_replace_idx = ids.index(text_replace)
-        ids = ids[:text_replace_idx] + [text_prompt_start] + input_ids + [text_prompt_end] + ids[text_replace_idx + 1:]
+        ids = ids[:text_replace_idx] + [text_prompt_start] + input_ids + [text_prompt_end] + ids[text_replace_idx + 1 :]
 
         speech_replace_idx = ids.index(speech_replace)
         codes_str = "".join([f"<|speech_{i}|>" for i in ref_codes_list])
@@ -358,10 +393,19 @@ class VieNeuTTS(BaseVieneuTTS):
                 min_new_tokens=50,
             )
         input_length = prompt_tensor.shape[-1]
-        output_str = self.tokenizer.decode(output_tokens[0, input_length:].cpu().numpy().tolist(), add_special_tokens=False)
+        output_str = self.tokenizer.decode(
+            output_tokens[0, input_length:].cpu().numpy().tolist(), add_special_tokens=False
+        )
         return output_str
 
-    def _infer_ggml(self, ref_codes: Union[List[int], torch.Tensor, np.ndarray], ref_phonemes: str, chunk_phonemes: str, temperature: float = 1.0, top_k: int = 50) -> str:
+    def _infer_ggml(
+        self,
+        ref_codes: Union[List[int], torch.Tensor, np.ndarray],
+        ref_phonemes: str,
+        chunk_phonemes: str,
+        temperature: float = 1.0,
+        top_k: int = 50,
+    ) -> str:
         if isinstance(ref_codes, (torch.Tensor, np.ndarray)):
             ref_codes_list = ref_codes.flatten().tolist()
         else:
@@ -372,10 +416,23 @@ class VieNeuTTS(BaseVieneuTTS):
             f"user: Convert the text to speech:<|TEXT_PROMPT_START|>{ref_phonemes} {chunk_phonemes}"
             f"<|TEXT_PROMPT_END|>\nassistant:<|SPEECH_GENERATION_START|>{codes_str}"
         )
-        output = self.backbone(prompt, max_tokens=self.max_context, temperature=temperature, top_k=top_k, stop=["<|SPEECH_GENERATION_END|>"])
+        output = self.backbone(
+            prompt,
+            max_tokens=self.max_context,
+            temperature=temperature,
+            top_k=top_k,
+            stop=["<|SPEECH_GENERATION_END|>"],
+        )
         return output["choices"][0]["text"]
 
-    def _infer_stream_ggml(self, ref_codes: Union[np.ndarray, torch.Tensor, List[int]], ref_phonemes: str, chunk_phonemes: str, temperature: float = 1.0, top_k: int = 50) -> Generator[np.ndarray, None, None]:
+    def _infer_stream_ggml(
+        self,
+        ref_codes: Union[np.ndarray, torch.Tensor, List[int]],
+        ref_phonemes: str,
+        chunk_phonemes: str,
+        temperature: float = 1.0,
+        top_k: int = 50,
+    ) -> Generator[np.ndarray, None, None]:
 
         if isinstance(ref_codes, (torch.Tensor, np.ndarray)):
             ref_codes_list = ref_codes.flatten().tolist()
@@ -393,15 +450,30 @@ class VieNeuTTS(BaseVieneuTTS):
         n_decoded_samples: int = 0
         n_decoded_tokens: int = len(ref_codes_list)
 
-        for item in self.backbone(prompt, max_tokens=self.max_context, temperature=temperature, top_k=top_k, stop=["<|SPEECH_GENERATION_END|>"], stream=True):
+        for item in self.backbone(
+            prompt,
+            max_tokens=self.max_context,
+            temperature=temperature,
+            top_k=top_k,
+            stop=["<|SPEECH_GENERATION_END|>"],
+            stream=True,
+        ):
             output_str = item["choices"][0]["text"]
             token_cache.append(output_str)
 
             if len(token_cache[n_decoded_tokens:]) >= self.streaming_frames_per_chunk + self.streaming_lookforward:
                 tokens_start = max(n_decoded_tokens - self.streaming_lookback - self.streaming_overlap_frames, 0)
-                tokens_end = n_decoded_tokens + self.streaming_frames_per_chunk + self.streaming_lookforward + self.streaming_overlap_frames
+                tokens_end = (
+                    n_decoded_tokens
+                    + self.streaming_frames_per_chunk
+                    + self.streaming_lookforward
+                    + self.streaming_overlap_frames
+                )
                 sample_start = (n_decoded_tokens - tokens_start) * self.hop_length
-                sample_end = sample_start + (self.streaming_frames_per_chunk + 2 * self.streaming_overlap_frames) * self.hop_length
+                sample_end = (
+                    sample_start
+                    + (self.streaming_frames_per_chunk + 2 * self.streaming_overlap_frames) * self.hop_length
+                )
                 curr_codes = token_cache[tokens_start:tokens_end]
                 recon = self._decode("".join(curr_codes))
                 recon = self._apply_watermark(recon)
@@ -417,8 +489,12 @@ class VieNeuTTS(BaseVieneuTTS):
 
         remaining_tokens = len(token_cache) - n_decoded_tokens
         if remaining_tokens > 0:
-            tokens_start = max(len(token_cache) - (self.streaming_lookback + self.streaming_overlap_frames + remaining_tokens), 0)
-            sample_start = (len(token_cache) - tokens_start - remaining_tokens - self.streaming_overlap_frames) * self.hop_length
+            tokens_start = max(
+                len(token_cache) - (self.streaming_lookback + self.streaming_overlap_frames + remaining_tokens), 0
+            )
+            sample_start = (
+                len(token_cache) - tokens_start - remaining_tokens - self.streaming_overlap_frames
+            ) * self.hop_length
             curr_codes = token_cache[tokens_start:]
             recon = self._decode("".join(curr_codes))
             recon = self._apply_watermark(recon)
