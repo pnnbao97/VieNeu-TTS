@@ -55,7 +55,6 @@ class RemoteVieNeuTTS(VieNeuTTS):
         top_k: int = 50,
         skip_normalize: bool = False,
     ) -> np.ndarray:
-
         ref_codes, ref_text = self._resolve_ref_voice(voice, ref_audio, ref_codes, ref_text)
 
         if not skip_normalize:
@@ -114,7 +113,6 @@ class RemoteVieNeuTTS(VieNeuTTS):
         top_k: int = 50,
         skip_normalize: bool = False,
     ) -> Generator[np.ndarray, None, None]:
-
         ref_codes, ref_text = self._resolve_ref_voice(voice, ref_audio, ref_codes, ref_text)
 
         if not skip_normalize:

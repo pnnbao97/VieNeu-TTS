@@ -5108,6 +5108,7 @@ gpu = [
 dev = [
     { name = "pytest" },
     { name = "pytest-asyncio" },
+    { name = "ruff" },
 ]
 gpu = [
     { name = "accelerate", marker = "sys_platform == 'darwin'" },
@@ -5150,6 +5151,7 @@ provides-extras = ["gpu"]
 dev = [
     { name = "pytest" },
     { name = "pytest-asyncio" },
+    { name = "ruff" },
 ]
 gpu = [
     { name = "accelerate", marker = "sys_platform == 'darwin'" },
