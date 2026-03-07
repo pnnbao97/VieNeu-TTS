@@ -22,6 +22,10 @@ jobs:
 
     continue-on-error: ${{ matrix.python-version == '3.13' || matrix.python-version == '3.14-dev' }}
 
+    # Allow experimental versions to fail without failing the whole check
+    # but still show as failed in the UI if not successful.
+    # The 'continue-on-error' above handles the job status.
+
     steps:
       - uses: actions/checkout@v4
 
