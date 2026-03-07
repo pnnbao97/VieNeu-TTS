@@ -7,65 +7,38 @@ on:
     branches: [ main ]
 
 jobs:
-  test:
-    name: Core Test (Python 3.12, ${{ matrix.os }})
+  # 1. Job Linting
+  lint:
+    name: Lint & Style
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          python-version: "3.12"
+      - name: Run Ruff
+        run: |
+          uv run ruff check .
+          uv run ruff format --check .
+
+  # 2. Job Test cho Linux & Windows (Matrix 3.10 - 3.13)
+  test-pc:
+    needs: lint
+    name: Test (${{ matrix.os }}, Py${{ matrix.python-version }})
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
+        os: [ubuntu-latest, windows-latest]
+        python-version: ["3.10", "3.11", "3.12", "3.13"]
 
     steps:
       - uses: actions/checkout@v4
 
       - name: Install espeak-ng (Linux)
         if: runner.os == 'Linux'
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y espeak-ng
-
-      - name: Install espeak-ng (macOS)
-        if: runner.os == 'macOS'
-        run: brew install espeak-ng
-
-      - name: Install espeak-ng (Windows)
-        if: runner.os == 'Windows'
-        run: echo "Espeak-ng installation skipped on Windows for now."
-
-      - name: Set up uv
-        uses: astral-sh/setup-uv@v5
-        with:
-          enable-cache: true
-          python-version: "3.12"
-
-      - name: Install dependencies
-        run: uv sync --group dev
-
-      - name: Lint with ruff
-        run: uv run ruff check .
-
-      - name: Format check with ruff
-        run: uv run ruff format --check .
-
-      - name: Run tests
-        run: uv run pytest
-        env:
-          PYTHONPATH: src
-
-  sdk-compatibility:
-    name: SDK Compatibility (Python ${{ matrix.python-version }}, ${{ matrix.os }})
-    runs-on: ${{ matrix.os }}
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
-        python-version: ["3.10", "3.11", "3.12", "3.13"]
-
-    # Python 3.13 and 3.14-dev might still fail due to upstream missing wheels (e.g. llama-cpp-python)
-    continue-on-error: ${{ matrix.python-version == '3.13' }}
-
-    steps:
-      - uses: actions/checkout@v4
+        run: sudo apt-get update && sudo apt-get install -y espeak-ng
 
       - name: Set up uv
         uses: astral-sh/setup-uv@v5
@@ -73,8 +46,48 @@ jobs:
           enable-cache: true
           python-version: ${{ matrix.python-version }}
 
-      - name: Install VieNeu SDK (Base)
-        run: uv pip install . --extra-index-url https://abetlen.github.io/llama-cpp-python/whl/metal/ --extra-index-url https://pnnbao97.github.io/llama-cpp-python-v0.3.16/cpu/ --no-cache-dir
+      - name: Install VieNeu SDK
+        run: |
+          if [ "${{ runner.os }}" == "Windows" ]; then
+            uv pip install . --extra-index-url https://pnnbao97.github.io/llama-cpp-python-v0.3.16/cpu/ --no-cache-dir
+          else
+            uv pip install . --no-cache-dir
+          fi
+        shell: bash
 
-      - name: Verify Import
-        run: python -c "import vieneu; print('VieNeu SDK imported successfully')"
+      - name: Run Pytest
+        run: uv run pytest
+        env:
+          PYTHONPATH: src
+
+  # 3. Job Test cho macOS (Matrix 3.10 - 3.13)
+  test-macos:
+    needs: lint
+    name: Test (macOS, Py${{ matrix.python-version }})
+    runs-on: macos-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.10", "3.11", "3.12", "3.13"]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install espeak-ng (macOS)
+        run: brew install espeak-ng
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install VieNeu SDK
+        run: uv pip install . --extra-index-url https://abetlen.github.io/llama-cpp-python/whl/metal/ --no-cache-dir
+
+      - name: Verify Import & Test
+        run: |
+          python -c "import vieneu; print('VieNeu SDK imported successfully')"
+          uv run pytest
+        env:
+          PYTHONPATH: src
