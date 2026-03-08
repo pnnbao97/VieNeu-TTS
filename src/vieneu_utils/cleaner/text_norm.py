@@ -150,9 +150,9 @@ _acronyms_exceptions_vi = {
 RE_ROMAN_NUMBER = re.compile(r"\b(?=[IVXLCDM]{2,})M{0,4}(CM|CD|D?C{0,3})(XC|XL|L?X{0,3})(IX|IV|V?I{0,3})\b")
 RE_LETTER = re.compile(r"(chữ|chữ cái|kí tự|ký tự)\s+(['\"]?)([a-z])(['\"]?)\b", re.IGNORECASE)
 RE_STANDALONE_LETTER = re.compile(r"\b([a-zA-Z])\b(\.?)")
-RE_URL = re.compile(r"\b(?:https?://|www\.)[A-Za-z0-9.\-_~:/?#\[\]@!$&\'()*+,;=]+\b")
+RE_URL = re.compile(r"\b(?:https?://|www\.)[A-Za-z0-9\-._~:/?#\[\]@!$&'()*+,;=]+\b")
 RE_SLASH_NUMBER = re.compile(r"\b(\d+)/(\d+)\b")
-RE_EMAIL = re.compile(r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b")
+RE_EMAIL = re.compile(r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9]+(?:[.\-][A-Za-z0-9]+)*\.[A-Za-z]{2,}\b")
 RE_SENTENCE_SPLIT = re.compile(r"([.!?]+(?:\s+|$))")
 RE_ACRONYM = re.compile(r"\b[A-Z0-9]{2,}\b")
 RE_ALPHANUMERIC = re.compile(r"\b(\d+)([a-zA-Z])\b")
@@ -168,21 +168,21 @@ RE_CLEAN_OTHERS = re.compile(r"[^\w\s.,!?;:@%_]")
 RE_CLEAN_QUOTES = re.compile(r'["\'“”‘’]')
 
 # Reusable patterns for measurement/currency
-_MAGNITUDE_P = r"\s*(tỷ|triệu|nghìn|ngàn)?\s*"
-_NUMERIC_P = r"(\d+(?:[.,]\d+)*)"
+_MAGNITUDE_P = r"\s*(?P<mag>tỷ|triệu|nghìn|ngàn)?\s*"
+_NUMERIC_P = r"(?P<num>\d+(?:[.,]\d+)*)"
 
 # Pre-compiled regex for compound units
-RE_COMPOUND_UNIT = re.compile(rf"\b{_NUMERIC_P}?\s*([a-zμµ²³°]+)/([a-zμµ²³°0-9]+)\b", re.IGNORECASE)
+RE_COMPOUND_UNIT = re.compile(rf"\b(?P<num>\d+(?:[.,]\d+)*)?\s*(?P<u1>[a-zμµ²³°]+)/(?P<u2>[a-zμµ²³°0-9]+)\b", re.IGNORECASE)
 
 # Pre-compiled currency patterns
 RE_CURRENCY_PREFIX_USD = re.compile(rf"\$\s*{_NUMERIC_P}{_MAGNITUDE_P}", re.IGNORECASE)
 RE_CURRENCY_SUFFIX_USD = re.compile(rf"{_NUMERIC_P}{_MAGNITUDE_P}\$", re.IGNORECASE)
-RE_PERCENTAGE = re.compile(rf"{_NUMERIC_P}\s*%", re.IGNORECASE)
+RE_PERCENTAGE = re.compile(rf"(?P<num>\d+(?:[.,]\d+)*)\s*%", re.IGNORECASE)
 
 # Pre-compile measurement and currency unit patterns
 _MEASUREMENT_PATTERNS = []
 for unit, full in sorted(_measurement_key_vi.items(), key=lambda x: len(x[0]), reverse=True):
-    pattern = re.compile(rf"\b{_NUMERIC_P}{_MAGNITUDE_P}{unit}\b", re.IGNORECASE)
+    pattern = re.compile(rf"\b{_NUMERIC_P}{_MAGNITUDE_P}{re.escape(unit)}\b", re.IGNORECASE)
 
     standalone_pattern = None
     safe_standalone = ["km", "cm", "mm", "kg", "mg", "m2", "km2", "usd", "vnd", "mhz", "khz", "ghz", "hz", "ph"]
@@ -242,8 +242,8 @@ def _expand_number_with_sep(num_str):
 
 def expand_measurement(text):
     def _repl(m, full):
-        num = m.group(1)
-        mag = m.group(2) if m.group(2) else ""
+        num = m.group("num")
+        mag = m.group("mag") if "mag" in m.groupdict() and m.group("mag") else ""
         expanded_num = _expand_number_with_sep(num)
         return f"{expanded_num} {mag} {full}".replace("  ", " ").strip()
 
@@ -259,14 +259,14 @@ def expand_measurement(text):
 
 def expand_currency(text):
     def _repl(m, full):
-        num = m.group(1)
-        mag = m.group(2) if m.group(2) else ""
+        num = m.group("num")
+        mag = m.group("mag") if "mag" in m.groupdict() and m.group("mag") else ""
         expanded_num = _expand_number_with_sep(num)
         return f"{expanded_num} {mag} {full}".replace("  ", " ").strip()
 
     text = RE_CURRENCY_PREFIX_USD.sub(lambda m: _repl(m, "đô la Mỹ"), text)
     text = RE_CURRENCY_SUFFIX_USD.sub(lambda m: _repl(m, "đô la Mỹ"), text)
-    text = RE_PERCENTAGE.sub(lambda m: f"{_expand_number_with_sep(m.group(1))} phần trăm", text)
+    text = RE_PERCENTAGE.sub(lambda m: f"{_expand_number_with_sep(m.group('num'))} phần trăm", text)
 
     for pattern, full in _CURRENCY_PATTERNS:
         text = pattern.sub(lambda m, f=full: _repl(m, f), text)
@@ -275,10 +275,10 @@ def expand_currency(text):
 
 def expand_compound_units(text):
     def _repl_compound(m):
-        num_str = m.group(1) if m.group(1) else ""
+        num_str = m.group("num") if m.group("num") else ""
         num = _expand_number_with_sep(num_str)
-        u1 = m.group(2).lower()
-        u2 = m.group(3).lower()
+        u1 = m.group("u1").lower()
+        u2 = m.group("u2").lower()
         full1 = _measurement_key_vi.get(u1, u1)
         full2 = _measurement_key_vi.get(u2, u2)
         res = f" {full1} trên {full2} "
