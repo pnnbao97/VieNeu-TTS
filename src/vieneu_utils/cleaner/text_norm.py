@@ -164,12 +164,12 @@ RE_TEMP_C = re.compile(r"(\d+(?:[.,]\d+)?)\s*°\s*c\b", re.IGNORECASE)
 RE_TEMP_F = re.compile(r"(\d+(?:[.,]\d+)?)\s*°\s*f\b", re.IGNORECASE)
 RE_DEGREE = re.compile(r"°")
 RE_VERSION = re.compile(r"\b(\d+(?:\.\d+)+)\b")
-RE_CLEAN_OTHERS = re.compile(r"[^\w\sàáảãạăắằẳẵặâấầẩẫậèéẻẽẹêếềểễệìíỉĩịòóỏõọôốồổỗộơớờởỡợùúủũụưứừửữỳýỷỹỵđ.,!?;:@%_]")
+RE_CLEAN_OTHERS = re.compile(r"[^\w\s.,!?;:@%_]")
 RE_CLEAN_QUOTES = re.compile(r'["\'“”‘’]')
 
 # Reusable patterns for measurement/currency
 _MAGNITUDE_P = r"\s*(tỷ|triệu|nghìn|ngàn)?\s*"
-_NUMERIC_P = r"((?:\d+[.,])*\d+)"
+_NUMERIC_P = r"(\d+(?:[.,]\d+)*)"
 
 # Pre-compiled regex for compound units
 RE_COMPOUND_UNIT = re.compile(rf"\b{_NUMERIC_P}?\s*([a-zμµ²³°]+)/([a-zμµ²³°0-9]+)\b", re.IGNORECASE)
