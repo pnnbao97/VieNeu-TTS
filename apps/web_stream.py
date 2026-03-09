@@ -103,6 +103,7 @@ async def get_models():
         for k, v in AVAILABLE_MODELS.items()
     ]
 
+from typing import Optional
 from pydantic import BaseModel, Field
 from vieneu_utils.url_extract import extract_text_from_url
 
@@ -115,7 +116,7 @@ class UrlRequest(BaseModel):
 
 class StreamRequest(BaseModel):
     text: str
-    voice_id: str = None
+    voice_id: Optional[str] = None
 
 @app.post("/set_model")
 async def set_model(req: ModelRequest):
