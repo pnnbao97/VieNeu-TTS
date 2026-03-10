@@ -49,8 +49,6 @@ VieNeu-TTS delivers production-ready speech synthesis fully offline.
 ---
 
 ## 🦜 1. Installation & Web UI <a name="installation"></a>
-> [!IMPORTANT]
-> **eSpeak NG Required:** You should install eSpeak NG on your system before running VieNeu-TTS. [Jump to eSpeak NG installation](#espeak).
 
 > **Intel Arc GPU installation (Optional):** Using PyTorch 2.11 with XPU support. [For Intel arc gpu user, read the Intel Arc GPU section below](#intel-arc). Tested on Arc B580 and A770 on window.
 > Recommend setting: Intel arc have high memory bandwidth so keep the batch size as high as possible and minimize the number of character per chunk.
@@ -68,11 +66,6 @@ VieNeu-TTS delivers production-ready speech synthesis fully offline.
 
 
 ### System Requirements
-- <a id="espeak"></a>**eSpeak NG:** Required for phonemization.
-  - **Windows:** Download the `.msi` from [eSpeak NG Releases](https://github.com/espeak-ng/espeak-ng/releases).
-  - **macOS:** `brew install espeak`
-  - **Ubuntu/Debian:** `sudo apt install espeak-ng`
-  - **Amazon Linux: Fedora**: `sudo dnf install espeak`
 - **NVIDIA GPU (Optional):** For maximum speed via LMDeploy or GGUF GPU acceleration.
   - Requires **NVIDIA Driver >= 570.65** (CUDA 12.8+) or higher.
   - For **LMDeploy**, it is recommended to have the [NVIDIA GPU Computing Toolkit](https://developer.nvidia.com/cuda-downloads) installed.
