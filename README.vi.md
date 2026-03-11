@@ -15,7 +15,7 @@
 > **Voice Cloning:** Tất cả các biến thể mô hình (bao gồm cả GGUF) đều hỗ trợ clone giọng nói tức thì chỉ với **3-5 giây** âm thanh mẫu.
 
 Dự án này bao gồm hai kiến trúc cốt lõi được huấn luyện trên tập dữ liệu [VieNeu-TTS-1000h](https://huggingface.co/datasets/pnnbao-ump/VieNeu-TTS-1000h):
-- **VieNeu-TTS (0.5B):** Phiên bản nâng cao được fine-tune từ kiến trúc NeuTTS Air để đạt được sự ổn định tối đa.
+- **VieNeu-TTS (0.5B):** Phiên bản nâng cao được tối ưu hóa để đạt được sự ổn định tối đa.
 - **VieNeu-TTS-0.3B:** Mô hình chuyên dụng được **huấn luyện từ đầu (trained from scratch)** bằng tập dữ liệu VieNeu-TTS-1000h, mang lại tốc độ inference nhanh gấp 2 lần và độ trễ cực thấp.
 
 Đây là một sự nâng cấp đáng kể so với VieNeu-TTS-140h trước đó với những cải tiến sau:
@@ -49,20 +49,11 @@ VieNeu-TTS cung cấp khả năng tổng hợp giọng nói sẵn sàng cho môi
 ---
 
 ## 🦜 1. Cài đặt & Giao diện Web <a name="installation"></a>
-
-> [!IMPORTANT]
-> **Bắt buộc cài đặt eSpeak NG:** Bạn phải cài đặt eSpeak NG trước khi chạy VieNeu-TTS. [Xem hướng dẫn cài đặt eSpeak NG tại đây](#espeak).
-
 > **Cài đặt cho Intel Arc GPU (Tùy chọn):** Sử dụng PyTorch 2.11 hỗ trợ XPU. [Dành cho người dùng Intel Arc GPU, xem phần hướng dẫn bên dưới](#intel-arc). Đã thử nghiệm trên Arc B580 và A770 trên Windows.
 
 Cách nhanh nhất để trải nghiệm VieNeu-TTS là thông qua giao diện Web (Gradio).
 
 ### Yêu cầu hệ thống
-- **Python:** 3.12
-- <a id="espeak"></a>**eSpeak NG:** Cần thiết để xử lý âm vị.
-  - **Windows:** Tải file `.msi` từ [eSpeak NG Releases](https://github.com/espeak-ng/espeak-ng/releases).
-  - **macOS:** `brew install espeak`
-  - **Ubuntu/Debian:** `sudo apt install espeak-ng`
 - **NVIDIA GPU (Tùy chọn):** Để đạt tốc độ tối đa qua LMDeploy hoặc GGUF tăng tốc GPU.
   - Yêu cầu **NVIDIA Driver >= 570.65** (CUDA 12.8+) hoặc cao hơn.
   - Đối với **LMDeploy**, khuyến nghị cài đặt [NVIDIA GPU Computing Toolkit](https://developer.nvidia.com/cuda-downloads).
@@ -393,7 +384,7 @@ Kiểm tra [docs/Deploy.md](docs/Deploy.md) để biết thêm chi tiết.
 
 ## 🙏 Lời cảm ơn
 
-Dự án này được xây dựng dựa trên kiến trúc [NeuTTS Air](https://huggingface.co/neuphonic/neutts-air) và [NeuCodec](https://huggingface.co/neuphonic/neucodec). Cụ thể, mô hình **VieNeu-TTS (0.5B)** được fine-tune từ NeuTTS Air, trong khi mô hình **VieNeu-TTS-0.3B** là một kiến trúc tùy chỉnh được huấn luyện từ đầu sử dụng tập dữ liệu [VieNeu-TTS-1000h](https://huggingface.co/datasets/pnnbao-ump/VieNeu-TTS-1000h).
+Dự án này sử dụng [neucodec](https://huggingface.co/neuphonic/neucodec) để giải mã âm thanh và [sea-g2p](https://github.com/pnnbao97/sea-g2p) để chuẩn hóa văn bản và xử lý âm vị.
 
 ---
 

@@ -108,7 +108,7 @@ web = [
     "triton; sys_platform == 'linux'",
     "transformers; sys_platform == 'darwin'",
     "accelerate; sys_platform == 'darwin'",
-    "gradio",
+    "gradio>=5.49.1",
     "trafilatura>=2.0.0",
 ]
 

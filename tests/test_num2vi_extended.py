@@ -1,5 +1,5 @@
 import pytest
-from vieneu_utils.cleaner.num2vi import n2w, n2w_single
+from sea_g2p.cleaner.num2vi import n2w, n2w_single
 
 def test_n2w_zero_padding():
     assert n2w("007") == "bảy"
@@ -32,7 +32,7 @@ def test_n2w_single_extended():
     assert n2w_single("+84912") == "không chín một hai"
 
 def test_n2w_hundreds_internal():
-    from vieneu_utils.cleaner.num2vi import n2w_hundreds
+    from sea_g2p.cleaner.num2vi import n2w_hundreds
     assert n2w_hundreds("005") == "không trăm lẻ lăm"
     assert n2w_hundreds("015") == "không trăm mười lăm"
     assert n2w_hundreds("100") == "một trăm"

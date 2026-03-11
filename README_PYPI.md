@@ -15,7 +15,7 @@
 > **Voice Cloning:** All model variants (including GGUF) support instant voice cloning with just **3-5 seconds** of reference audio.
 
 This project features two core architectures trained on the [VieNeu-TTS-1000h](https://huggingface.co/datasets/pnnbao-ump/VieNeu-TTS-1000h) dataset:
-- **VieNeu-TTS (0.5B):** An enhanced model fine-tuned from the NeuTTS Air architecture for maximum stability.
+- **VieNeu-TTS (0.5B):** An enhanced model optimized for maximum stability.
 - **VieNeu-TTS-0.3B:** A specialized model **trained from scratch** using the VieNeu-TTS-1000h dataset, delivering 2x faster inference and ultra-low latency.
 
 These represent a significant upgrade from the previous VieNeu-TTS-140h with the following improvements:
@@ -248,7 +248,7 @@ Train VieNeu-TTS on your own voice or custom datasets.
 
 ## 🙏 Acknowledgements
 
-This project builds upon the [NeuTTS Air](https://huggingface.co/neuphonic/neutts-air) and [NeuCodec](https://huggingface.co/neuphonic/neucodec) architectures. Specifically, the **VieNeu-TTS (0.5B)** model is fine-tuned from NeuTTS Air, while the **VieNeu-TTS-0.3B** model is a custom architecture trained from scratch using the [VieNeu-TTS-1000h](https://huggingface.co/datasets/pnnbao-ump/VieNeu-TTS-1000h) dataset.
+This project uses [neucodec](https://huggingface.co/neuphonic/neucodec) for audio decoding and [sea-g2p](https://github.com/pnnbao97/sea-g2p) for text normalization and phonemization.
 
 ---
 

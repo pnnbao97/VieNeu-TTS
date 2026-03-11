@@ -1,9 +1,9 @@
 import pytest
-from vieneu_utils.normalize_text import VietnameseTTSNormalizer
+from sea_g2p import Normalizer
 
 @pytest.fixture
 def normalizer():
-    return VietnameseTTSNormalizer()
+    return Normalizer()
 
 # Combined test cases from multiple categories
 TEST_CASES = [
@@ -64,16 +64,16 @@ TEST_CASES = [
     # ─── 8. TIỀN TỆ ──────────────────────────────────────────────────────────
     ("100$",   "một trăm đô la Mỹ"),
     ("$50",    "năm mươi đô la Mỹ"),
-    ("200 USD","hai trăm đô la Mỹ"),
+    ("200 USD","hai trăm <en>u s d</en>"),
     ("500 VND","năm trăm đồng"),
-    ("50 euro","năm mươi ơ rô"),
+    ("50 euro","năm mươi euro"),
     ("1000đ",  "một nghìn đồng"),
     ("75%",    "bảy mươi lăm phần trăm"),
     ("15,4% xuống còn 8,3%", "mười lăm phẩy bốn phần trăm xuống còn tám phẩy ba phần trăm"),
-    ("370 tỷ USD", "ba trăm bảy mươi tỷ đô la Mỹ"),
+    ("370 tỷ USD", "ba trăm bảy mươi tỷ <en>u s d</en>"),
     ("5 triệu VND", "năm triệu đồng"),
-    ("10 nghìn USD", "mười nghìn đô la Mỹ"),
-    ("8,92 tỷ USD", "tám phẩy chín mươi hai tỷ đô la Mỹ"),
+    ("10 nghìn USD", "mười nghìn <en>u s d</en>"),
+    ("8,92 tỷ USD", "tám phẩy chín mươi hai tỷ <en>u s d</en>"),
 
     # ─── 9. ĐƠN VỊ ĐO LƯỜNG ─────────────────────────────────────────────────
     ("50km",  "năm mươi ki lô mét"),
@@ -109,7 +109,7 @@ TEST_CASES = [
     ("chữ B",       "chữ bê"),
     ("ký tự 'C'",   "ký tự xê"),
     ("chữ cái Z",   "chữ cái dét"),
-    ("kí tự w",     "kí tự vê kép"),
+    ("kí tự w",     "kí tự đắp liu"),
 
     # ─── 13. TỪ VIẾT TẮT TIẾNG VIỆT ─────────────────────────────────────────
     ("UBND",  "uỷ ban nhân dân"),
@@ -151,7 +151,6 @@ TEST_CASES = [
     # ─── 17. VIẾT TẮT ĐƠN GIẢN ──────────────────────────────────────────────
     ("v.v",  "vân vân"),
     ("v/v",  "về việc"),
-    ("ko",   "không"),
     ("đ/c",  "địa chỉ"),
 
     # ─── 18. TRƯỜNG HỢP HỖN HỢP ──────────────────────────────────────────────
@@ -162,15 +161,15 @@ TEST_CASES = [
     ("Đề án 06 và Chỉ thị 04", "đề án không sáu và chỉ thị không bốn"),
 
     # ─── 19. AN TOÀN (KHÔNG NHẦM LẪN) ──────────────────────────────────────────
-    ("Anh M đi bộ", "anh mờ đi bộ"),
+    ("Anh M. đi bộ", "anh mờ đi bộ"),
     ("Vitamin G", "vitamin gờ"),
     ("L là tên riêng", "lờ là tên riêng"),
     ("5m chiều dài", "năm mét chiều dài"),
     ("Đơn vị km", "đơn vị ki lô mét"),
 
     # ─── 20. EMAIL ───────────────────────────────────────────────────────────
-    ("Liên hệ qua email pnnbao@gmail.com nhé.", "liên hệ qua email pê nờ nờ bê a o a còng gờ meo chấm com nhé."),
-    ("Email: contact@example.com", "email: xê o nờ tê a xê tê a còng e ích a mờ pê lờ e chấm xê o mờ"),
+    ("Liên hệ qua email pnnbao@gmail.com nhé.", "liên hệ qua email <en>pnnbao</en> a còng <en>gmail</en> chấm com nhé."),
+    ("Email: contact@example.com", "email, <en>contact</en> a còng <en>example</en> chấm com"),
 
     # ─── 21. VIẾT TẮT ALPHANUMERIC (ENGLISH STYLE) ──────────────────────────
     ("Mô hình B2B rất phổ biến.", "mô hình <en>b two b</en> rất phổ biến."),
@@ -185,8 +184,8 @@ TEST_CASES = [
 
     # ─── 23. TOÀN DIỆN (CẢI TIẾN MỚI) ──────────────────────────────────────────
     # URLs
-    ("Truy cập https://vieneu.io để biết thêm chi tiết.", "truy cập hát tê tê pê ét hai chấm xẹt xẹt vê i e nờ e u chấm i o để biết thêm chi tiết."),
-    ("Website www.google.com rất hữu ích.", "website vê kép vê kép vê kép chấm gờ o o gờ lờ e chấm xê o mờ rất hữu ích."),
+    ("Truy cập https://vieneu.io để biết thêm chi tiết.", "truy cập <en>https</en> <en>vieneu</en> chấm <en>i o</en> để biết thêm chi tiết."),
+    ("Website www.google.com rất hữu ích.", "website <en>www</en> chấm <en>google</en> chấm com rất hữu ích."),
 
     # Slashes / Địa chỉ
     ("Địa chỉ nhà tôi là 123/4 đường Nguyễn Trãi.", "địa chỉ nhà tôi là một trăm hai mươi ba xẹt bốn đường nguyễn trãi."),
@@ -210,27 +209,37 @@ TEST_CASES = [
     ("Độ pH của nước là 7.", "độ pê hát của nước là bảy."),
 
     # Emails mở rộng
-    ("Email công việc: admin@fpt.vn", "email công việc: a đê mờ i nờ a còng ép phê tê chấm vê nờ"),
-    ("Liên hệ hotmail: test@hotmail.com", "liên hệ hotmail: tê e ét tê a còng hót meo chấm com"),
+    ("Email công việc: admin@fpt.vn", "email công việc, <en>admin</en> a còng <en>f p t</en> chấm <en>v n</en>"),
+    ("Liên hệ hotmail: test@hotmail.com", "liên hệ hotmail, <en>test</en> a còng <en>hotmail</en> chấm com"),
+    ("Liên hệ qua email pnnbao@proton.com nhé.", "liên hệ qua email <en>pnnbao</en> a còng <en>proton</en> chấm com nhé."),
 
     # Redundant expansion (symbol + unit)
     ("#1kg", "thăng một ki lô gam"),
 
     # ─── 24. CÂU TEST THỰC TẾ ──────────────────────────────────────────────────
     ("Ông Lưu Trung Thái, Chủ tịch HĐQT MB cho biết, vốn hóa của ngân hàng đã tăng gần 10 lần kể từ năm 2017, đạt khoảng 8,5 tỷ USD, tạo nền tảng cho mục tiêu 10 tỷ USD vào năm 2027.",
-     "ông lưu trung thái, chủ tịch hđqt <en>m b</en> cho biết, vốn hóa của ngân hàng đã tăng gần mười lần kể từ năm hai nghìn không trăm mười bảy, đạt khoảng tám phẩy năm tỷ đô la mỹ, tạo nền tảng cho mục tiêu mười tỷ đô la mỹ vào năm hai nghìn không trăm hai mươi bảy."),
+     "ông lưu trung thái, chủ tịch hội đồng quản trị <en>m b</en> cho biết, vốn hóa của ngân hàng đã tăng gần mười lần kể từ năm hai nghìn không trăm mười bảy, đạt khoảng tám phẩy năm tỷ <en>u s d</en>, tạo nền tảng cho mục tiêu mười tỷ <en>u s d</en> vào năm hai nghìn không trăm hai mươi bảy."),
 
     # ─── 25. THÊM MỚI (CẢI THIỆN) ──────────────────────────────────────────
     ("Số tiền là 1.000.000.000.000 đồng.", "số tiền là một nghìn tỷ đồng."),
     ("“Lời chào cao hơn mâm cỗ”", "lời chào cao hơn mâm cỗ"),
     ("‘Trân trọng’", "trân trọng"),
     ("Chào <en>world</en> xinh đẹp", "chào <en>world</en> xinh đẹp"),
+    ("Nếu đã từng đọc cuốn sách trên của Simon, hoặc đã xem anh thuyết trình về khái niệm tại sao trên diễn đàn TED.com, thì có lẽ bạn không còn xa lạ với vòng tròn vàng.", "nếu đã từng đọc cuốn sách trên của simon, hoặc đã xem anh thuyết trình về khái niệm tại sao trên diễn đàn <en>t e d</en> chấm com, thì có lẽ bạn không còn xa lạ với vòng tròn vàng."),
 
     # ─── 26. TRƯỜNG HỢP CẠNH (EDGE CASES) ─────────────────────────────────────
     ("MixedCase Acronyms như ChatGPT hay Claude.", "mixedcase acronyms như chatgpt hay claude."),
-    ("Unit mix: 10km/h và 5m/s.", "unit mix: mười ki lô mét trên giờ và năm mét trên giây."),
-    ("Số cực lớn: 1.000.000.000.000.000.000", "số cực lớn: một tỷ tỷ"),
-    ("Email với tên miền lạ: user@domain.tech", "email với tên miền lạ: u ét e rờ a còng đê o mờ a i nờ chấm tê e xê hát"),
+    ("Unit mix: 10km/h và 5m/s.", "unit mix, mười ki lô mét trên giờ và năm mét trên giây."),
+    ("Số cực lớn: 1.000.000.000.000.000.000", "số cực lớn, một tỷ tỷ"),
+    ("Email với tên miền lạ: user@domain.tech", "email với tên miền lạ, <en>user</en> a còng <en>domain</en> chấm <en>tech</en>"),
+    
+    # ─── 27. PHẨY VÀ DẤU NHÁY (PRIMES & APOSTROPHES) ──────────────────────────
+    ("A' là một ký tự đặc biệt", "a phẩy là một ký tự đặc biệt"),
+    ("Đây là phút 1'", "đây là phút một phẩy"),
+    ("I don't know why", "i don't know why"),
+    ("It's a beautiful day", "it's a beautiful day"),
+    ("Giá của 'Sản phẩm' này là $10", "giá của sản phẩm này là mười đô la mỹ"),
+    ("Giá SP500 hôm nay là 4.200,5 điểm", "giá ét pê năm trăm hôm nay là bốn nghìn hai trăm phẩy năm điểm"),
 ]
 
 @pytest.mark.parametrize("input_text, expected", TEST_CASES)

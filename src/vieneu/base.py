@@ -7,7 +7,7 @@ import numpy as np
 import gc
 import logging
 from huggingface_hub import hf_hub_download
-from vieneu_utils.normalize_text import VietnameseTTSNormalizer
+from sea_g2p import Normalizer
 
 # Configure logging
 logger = logging.getLogger("Vieneu")
@@ -26,7 +26,7 @@ class BaseVieneuTTS(ABC):
         self.assets_dir = Path(__file__).parent / "assets"
         self._preset_voices: Dict[str, Any] = {}
         self._default_voice: Optional[str] = None
-        self.normalizer = VietnameseTTSNormalizer()
+        self.normalizer = Normalizer()
         self._ref_phoneme_cache: Dict[str, str] = {}
 
         # Watermarker placeholder

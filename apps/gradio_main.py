@@ -13,7 +13,7 @@ import queue
 import threading
 import yaml
 from vieneu_utils.core_utils import split_text_into_chunks, join_audio_chunks, env_bool
-from vieneu_utils.normalize_text import VietnameseTTSNormalizer
+from sea_g2p import Normalizer
 from functools import lru_cache
 import gc
 
@@ -44,7 +44,7 @@ model_loaded = False
 using_lmdeploy = False
 
 # Normalizer (module-level singleton)
-_text_normalizer = VietnameseTTSNormalizer()
+_text_normalizer = Normalizer()
 
 # Cache for reference texts
 _ref_text_cache = {}
@@ -1080,7 +1080,7 @@ with gr.Blocks(theme=theme, css=css, title="VieNeu-TTS", head=head_html) as demo
                     <div class="warning-banner-item">
                         <strong>🐆 Hệ máy GPU</strong>
                         <div class="warning-banner-content">
-                            Chọn <b>VieNeu-TTS-0.3B (GPU)</b> để x2 tốc độ (độ chính xác ~95% bản gốc).<br><br>
+                            Chọn <b>VieNeu-TTS-0.3B (GPU)</b> để x2 tốc độ (chính xác ~80% nhưng tốc độ nhanh hơn). Nếu muốn độ chính xác cao nhất, hãy sử dụng <b>VieNeu-TTS</b> gốc.<br><br>
                             ⚠️ <b>Lưu ý GPU cũ (RTX 10/20, T4):</b> Các GPU này không hỗ trợ bfloat16, nên khi dùng LMDeploy <b>bắt buộc</b> phải chọn <b>VieNeu-TTS-0.3B</b> thay vì bản VieNeu-TTS gốc.
                         </div>
                     </div>

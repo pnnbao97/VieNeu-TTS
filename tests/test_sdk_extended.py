@@ -5,8 +5,6 @@ import torch
 from vieneu.factory import Vieneu
 from vieneu.standard import VieNeuTTS
 from vieneu.remote import RemoteVieNeuTTS
-from vieneu_utils.phonemize_text import PhonemeDB
-import sqlite3
 
 @pytest.fixture
 def mock_torch_backbone():
@@ -36,26 +34,6 @@ def mock_torch_backbone():
 
         yield {"tokenizer": tokenizer, "model": model, "codec": codec}
 
-def test_sqlite_chunking():
-    """Test that PhonemeDB.lookup_batch handles more than 999 words by chunking."""
-    db = PhonemeDB(":memory:")
-    conn = sqlite3.connect(":memory:")
-    # Mock the connection to return a real-ish cursor
-    db._get_conn = MagicMock(return_value=conn)
-
-    conn.execute("CREATE TABLE merged (word TEXT, phone TEXT)")
-    conn.execute("CREATE TABLE common (word TEXT, vi_phone TEXT, en_phone TEXT)")
-
-    # Insert 1000 words
-    words = [f"word_{i}" for i in range(1500)]
-    for w in words[:1000]:
-        conn.execute("INSERT INTO merged (word, phone) VALUES (?, ?)", (w, f"phone_{w}"))
-
-    # We should be able to look up all 1500 words without error
-    merged, common = db.lookup_batch(words)
-    assert len(merged) == 1000
-    assert "word_0" in merged
-    assert "word_999" in merged
 
 def test_base_encode_reference_device(mock_torch_backbone):
     """Test BaseVieneuTTS.encode_reference moves tensor to correct device."""

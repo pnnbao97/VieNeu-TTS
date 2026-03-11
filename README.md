@@ -15,7 +15,7 @@
 > **Voice Cloning:** All model variants (including GGUF) support instant voice cloning with just **3-5 seconds** of reference audio.
 
 This project features two core architectures trained on the [VieNeu-TTS-1000h](https://huggingface.co/datasets/pnnbao-ump/VieNeu-TTS-1000h) dataset:
-- **VieNeu-TTS (0.5B):** An enhanced model fine-tuned from the NeuTTS Air architecture for maximum stability.
+- **VieNeu-TTS (0.5B):** An enhanced model optimized for maximum stability.
 - **VieNeu-TTS-0.3B:** A specialized model **trained from scratch** using the VieNeu-TTS-1000h dataset, delivering 2x faster inference and ultra-low latency.
 
 These represent a significant upgrade from the previous VieNeu-TTS-140h with the following improvements:
@@ -49,8 +49,6 @@ VieNeu-TTS delivers production-ready speech synthesis fully offline.
 ---
 
 ## 🦜 1. Installation & Web UI <a name="installation"></a>
-> [!IMPORTANT]
-> **eSpeak NG Required:** You should install eSpeak NG on your system before running VieNeu-TTS. [Jump to eSpeak NG installation](#espeak).
 
 > **Intel Arc GPU installation (Optional):** Using PyTorch 2.11 with XPU support. [For Intel arc gpu user, read the Intel Arc GPU section below](#intel-arc). Tested on Arc B580 and A770 on window.
 > Recommend setting: Intel arc have high memory bandwidth so keep the batch size as high as possible and minimize the number of character per chunk.
@@ -68,11 +66,6 @@ VieNeu-TTS delivers production-ready speech synthesis fully offline.
 
 
 ### System Requirements
-- <a id="espeak"></a>**eSpeak NG:** Required for phonemization.
-  - **Windows:** Download the `.msi` from [eSpeak NG Releases](https://github.com/espeak-ng/espeak-ng/releases).
-  - **macOS:** `brew install espeak`
-  - **Ubuntu/Debian:** `sudo apt install espeak-ng`
-  - **Amazon Linux: Fedora**: `sudo dnf install espeak`
 - **NVIDIA GPU (Optional):** For maximum speed via LMDeploy or GGUF GPU acceleration.
   - Requires **NVIDIA Driver >= 570.65** (CUDA 12.8+) or higher.
   - For **LMDeploy**, it is recommended to have the [NVIDIA GPU Computing Toolkit](https://developer.nvidia.com/cuda-downloads) installed.
@@ -383,7 +376,7 @@ Thanks to all the amazing people who have contributed to this project!
 
 ## 🙏 Acknowledgements
 
-This project builds upon the [NeuTTS Air](https://huggingface.co/neuphonic/neutts-air) and [NeuCodec](https://huggingface.co/neuphonic/neucodec) architectures. Specifically, the **VieNeu-TTS (0.5B)** model is fine-tuned from NeuTTS Air, while the **VieNeu-TTS-0.3B** model is a custom architecture trained from scratch using the [VieNeu-TTS-1000h](https://huggingface.co/datasets/pnnbao-ump/VieNeu-TTS-1000h) dataset.
+This project uses [neucodec](https://huggingface.co/neuphonic/neucodec) for audio decoding and [sea-g2p](https://github.com/pnnbao97/sea-g2p) for text normalization and phonemization.
 
 ---
 

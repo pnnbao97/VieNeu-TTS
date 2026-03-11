@@ -20,7 +20,7 @@ authors = [
 ]
 requires-python = ">=3.10"
 dependencies = [
-    "phonemizer>=3.3.0",
+    "sea-g2p>=0.1.0",
     "neucodec>=0.0.4",
     "librosa>=0.11.0",
     "gradio>=5.49.1",
@@ -50,7 +50,6 @@ where = ["src", "."]
 include = ["vieneu*", "vieneu_utils*", "apps*", "examples*"]
 
 [tool.setuptools.package-data]
-vieneu_utils = ["*.json"]
 vieneu = ["assets/samples/*"]
 
 [tool.uv.sources]
