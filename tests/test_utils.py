@@ -1,7 +1,25 @@
 import numpy as np
 import pytest
 from vieneu.utils import _linear_overlap_add
-from vieneu_utils.core_utils import join_audio_chunks
+from vieneu_utils.core_utils import split_text_into_chunks, join_audio_chunks
+
+# --- Text Utils Tests ---
+
+def test_split_text_into_chunks():
+    text = "Đây là một câu ngắn. Đây là một câu dài hơn một chút để kiểm tra xem nó có bị chia ra không nếu chúng ta đặt giới hạn ký tự thấp."
+    chunks = split_text_into_chunks(text, max_chars=50)
+    assert len(chunks) > 1
+    for chunk in chunks:
+        assert len(chunk) <= 50
+
+def test_split_text_paragraphs():
+    text = "Đoạn 1.\n\nĐoạn 2."
+    chunks = split_text_into_chunks(text, max_chars=100)
+    assert len(chunks) == 2
+    assert "Đoạn 1" in chunks[0]
+    assert "Đoạn 2" in chunks[1]
+
+# --- Audio Utils Tests ---
 
 def test_linear_overlap_add():
     # Create two overlapping frames
@@ -15,12 +33,8 @@ def test_linear_overlap_add():
 
     # Total length should be stride * (len(frames) - 1) + frame_len = 50 * 1 + 100 = 150
     assert out.shape == (150,)
-
-    # Check that it's not all zeros
     assert np.any(out != 0)
-
     # With all ones and linear OLA, the result should be close to 1.0 where it overlaps
-    # (weight1 * 1 + weight2 * 1) / (weight1 + weight2) = 1.0
     assert np.allclose(out[50:100], 1.0)
 
 def test_linear_overlap_add_empty():
@@ -48,7 +62,6 @@ def test_join_audio_chunks_crossfade():
     joined = join_audio_chunks(chunks, sr=sr, crossfade_p=crossfade_p)
     # Length should be 1000 + 1000 - 160 = 1840
     assert joined.shape == (1840,)
-    # Check transition
     assert joined[0] == 1.0
     assert joined[-1] == 0.0
     # Mid-point of crossfade should be 0.5

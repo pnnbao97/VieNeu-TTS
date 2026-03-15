@@ -15,10 +15,13 @@ This will automatically discover and run all test suites in the `tests/` directo
 ---
 
 ### Individual Test Suites
-- **[test_normalize.py](test_normalize.py)**: Comprehensive Vietnamese text normalization (120+ cases).
-- **[test_phonemize.py](test_phonemize.py)**: IPA phonemization logic.
-- **[test_core_utils.py](test_core_utils.py)**: Core utility functions.
-- **[test_tts_classes.py](test_tts_classes.py)**: Main TTS engine classes.
+- **[test_engine_standard.py](test_engine_standard.py)**: Tests for the standard VieNeuTTS engine (Torch/GGUF).
+- **[test_engine_remote.py](test_engine_remote.py)**: Tests for the Remote API engine.
+- **[test_engine_fast.py](test_engine_fast.py)**: Tests for the Fast (LMDeploy) engine.
+- **[test_factory.py](test_factory.py)**: Tests for the Vieneu factory class.
+- **[test_utils.py](test_utils.py)**: Tests for audio and text processing utilities.
+
+---
 
 ### Other Utilities
 - **[benchmark.py](benchmark.py)**: RTF and latency benchmarking.
