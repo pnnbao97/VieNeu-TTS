@@ -12,7 +12,9 @@
 **VieNeu-TTS** is an advanced on-device Vietnamese Text-to-Speech (TTS) model with **instant voice cloning** and **English-Vietnamese bilingual** support.
 
 > [!IMPORTANT]
-> **🚀 VieNeu-TTS-v2 Turbo:** The latest version is optimized for CPU & Low-end devices, featuring seamless **bilingual (Code-switching)** capabilities and ultra-fast inference.
+> **🚀 VieNeu-TTS-v2 Turbo:** Optimized for edge devices and extremely fast inference (CPU & Low-end devices).  
+> *Note: Quality is lower than the Standard VieNeu-TTS and may struggle with very short segments (< 5 words).*  
+> Version **VieNeu-TTS-v2 (Non-Turbo)** is coming soon!
 
 ## ✨ Key Features
 - **Bilingual (English-Vietnamese)**: Smooth and natural transitions between languages powered by [sea-g2p](https://github.com/pnnbao97/sea-g2p).
@@ -232,14 +234,14 @@ docker run --gpus all \
 
 | Model | Format | Device | Bilingual | Cloning | Speed |
 |---|---|---|---|---|---|
-| **VieNeu-v2-Turbo** | GGUF/ONNX | **CPU/GPU** | ✅ | ✅ Yes | **Extreme** |
+| **VieNeu-v2-Turbo** | GGUF/ONNX | **CPU/Edge** | ✅ | ✅ Yes | **Extreme** (Fastest) |
 | **VieNeu-TTS-v2** | PyTorch | GPU | ✅ | ✅ Yes | **Standard** (Coming soon) |
 | **VieNeu-TTS 0.3B** | PyTorch | GPU/CPU | ❌ | ✅ Yes | **Very Fast** |
 | **VieNeu-TTS** | PyTorch | GPU/CPU | ❌ | ✅ Yes | **Standard** |
 
 > [!TIP]
-> Use **Turbo v2** for AI assistants, chatbots, and long-text reading on laptops. 
-> Use **GPU/Standard** for high-quality voice cloning and artistic content.
+> Use **Turbo v2** for AI assistants, chatbots, and real-time edge applications where speed is critical. Note: It may have stability issues with very short phrases (< 5 words).
+> Use **GPU/Standard** (VieNeu-TTS v1/v2) for maximum audio quality and high-fidelity voice cloning.
 
 ---
 
