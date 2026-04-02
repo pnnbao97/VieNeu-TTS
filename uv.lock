@@ -5191,7 +5191,7 @@ wheels = [
 
 [[package]]
 name = "vieneu"
-version = "2.3.0"
+version = "2.2.0"
 source = { editable = "." }
 dependencies = [
     { name = "gradio" },
