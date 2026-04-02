@@ -50,11 +50,13 @@ class TurboGPUVieNeuTTS(BaseVieneuTTS):
                     cache_max_entry_count=kwargs.get("memory_util", 0.3),
                     tp=kwargs.get("tp", 1),
                     enable_prefix_caching=kwargs.get("enable_prefix_caching", True),
-                    dtype='bfloat16' if self.device == "cuda" else 'float16'
+                    dtype='bfloat16',
+                    quant_policy=kwargs.get("quant_policy", 0)
                 )
                 self.backbone = pipeline(repo, backend_config=engine_config)
                 self.gen_config = GenerationConfig(
                     top_p=0.95, top_k=50, temperature=0.4, max_new_tokens=2048,
+                    repetition_penalty=1.1,
                     do_sample=True, stop_words=["<|SPEECH_GENERATION_END|>"]
                 )
             except ImportError:
