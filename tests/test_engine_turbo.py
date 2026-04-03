@@ -1,7 +1,18 @@
 import pytest
 import numpy as np
-import torch
+import sys
 from unittest.mock import MagicMock, patch
+
+# Mock heavy modules before importing turbo
+mock_torch = MagicMock()
+mock_torch.Tensor = MagicMock
+sys.modules["torch"] = mock_torch
+sys.modules["torch.backends"] = mock_torch.backends
+sys.modules["torch.backends.mps"] = mock_torch.backends.mps
+sys.modules["llama_cpp"] = MagicMock()
+sys.modules["transformers"] = MagicMock()
+sys.modules["lmdeploy"] = MagicMock()
+
 from vieneu.turbo import TurboVieNeuTTS, TurboGPUVieNeuTTS
 
 @pytest.fixture
@@ -80,12 +91,19 @@ def test_turbo_gpu_infer(mock_model, mock_tokenizer, mock_hf, mock_ort, mock_onn
 
     # Mock standard Transformers path
     mock_tokenizer_instance = MagicMock()
-    mock_tokenizer_instance.return_value = {"input_ids": torch.zeros((1, 5), dtype=torch.long)}
+    mock_token_tensor = MagicMock()
+    mock_token_tensor.to.return_value = mock_token_tensor
+    mock_tokenizer_instance.return_value = {"input_ids": mock_token_tensor}
     mock_tokenizer_instance.decode.return_value = "<|speech_100|><|speech_101|>"
     mock_tokenizer.return_value = mock_tokenizer_instance
 
     mock_model_instance = MagicMock()
-    mock_model_instance.generate.return_value = torch.zeros((1, 20), dtype=torch.long)
+    mock_gen_output = MagicMock()
+    mock_gen_output.cpu.return_value = mock_gen_output
+    # Mock __getitem__ for inputs['input_ids'].shape[-1]
+    mock_token_tensor.shape = [1, 5]
+
+    mock_model_instance.generate.return_value = mock_gen_output
     mock_model_instance.to.return_value = mock_model_instance
     mock_model.return_value = mock_model_instance
 
@@ -110,3 +128,18 @@ def test_turbo_voice_cloning_encode(mock_hf, mock_llama, mock_ort, mock_onnx_ses
         emb = tts.encode_reference("dummy.wav")
         assert isinstance(emb, np.ndarray)
         assert emb.shape == (1, 128)
+
+@patch("onnxruntime.InferenceSession")
+@patch("llama_cpp.Llama")
+@patch("huggingface_hub.hf_hub_download", return_value="dummy_path")
+def test_turbo_array_truth_value_fix(mock_hf, mock_llama, mock_ort, mock_onnx_session, mock_llama_instance):
+    """Verify that passing numpy arrays doesn't cause 'truth value of an array is ambiguous' error."""
+    mock_ort.return_value = mock_onnx_session
+    mock_llama.return_value = mock_llama_instance
+
+    tts = TurboVieNeuTTS(backbone_repo="dummy", device="cpu")
+
+    with patch("vieneu_utils.phonemize_text.phonemize_text", return_value="p-h-o-n-e-m-e-s"):
+        # Test with numpy array for ref_codes
+        audio = tts.infer("Xin chào", ref_codes=np.zeros(128))
+        assert isinstance(audio, np.ndarray)

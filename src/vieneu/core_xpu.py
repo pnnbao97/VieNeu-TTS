@@ -117,19 +117,17 @@ class XPUVieNeuTTS(VieNeuTTS):
         
         return output_str
 
-    def encode_reference(self, ref_audio_path):
-        """Override to ensure input tensor is on XPU."""
         
+    def encode_reference(self, ref_audio_path: Union[str, Path]) -> torch.Tensor:
+        """XPU-optimized speaker encoding."""
+        import librosa
         wav, _ = librosa.load(ref_audio_path, sr=16000, mono=True)
-        wav_tensor = torch.from_numpy(wav).float().unsqueeze(0).unsqueeze(0)
-        
-        # Move to XPU explicitly
-        wav_tensor = wav_tensor.to(device="xpu", dtype=torch.float32)
+        wav_tensor = torch.from_numpy(wav).float().unsqueeze(0).unsqueeze(0).to(device="xpu", dtype=torch.float32)
         
         with torch.no_grad():
             ref_codes = self.codec.encode_code(audio_or_path=wav_tensor).squeeze(0).squeeze(0)
         return ref_codes
-        
+
     def close(self):
         """Extended close to handle XPU cache clearing."""
         super().close()

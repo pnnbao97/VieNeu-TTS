@@ -1,6 +1,7 @@
 import pytest
 import numpy as np
 import torch
+import sys
 from unittest.mock import patch, MagicMock, AsyncMock
 from vieneu.remote import RemoteVieNeuTTS
 
@@ -41,23 +42,24 @@ def test_remote_infer_single_chunk(mock_post, remote_tts):
         assert isinstance(audio, np.ndarray)
         assert len(audio) == 1000
 
-@patch("aiohttp.ClientSession")
 @pytest.mark.asyncio
-async def test_remote_infer_async_chunk(mock_session_cls, remote_tts):
+async def test_remote_infer_async_chunk(remote_tts):
     # Setup mock session and response
     mock_session = MagicMock()
-    mock_resp = MagicMock()
-    mock_resp.status_code = 200
-    mock_resp.raise_for_status = lambda: None
-    mock_resp.json = AsyncMock(return_value={"choices": [{"message": {"content": "<|speech_200|>"}}]})
-    
-    # Mock the 'async with session.post(...)' pattern
-    # calling session.post() returns an object whose __aenter__ returns mock_resp
-    mock_session.post.return_value.__aenter__ = AsyncMock(return_value=mock_resp)
-    mock_session.post.return_value.__aexit__ = AsyncMock(return_value=None)
-    
-    audio = await remote_tts._infer_chunk_async(
-        mock_session, "chunk", [1], "ref_text", 1.0, 50
-    )
-    assert isinstance(audio, np.ndarray)
-    assert len(audio) == 1000
+    # Mock aiohttp in sys.modules
+    with patch.dict(sys.modules, {"aiohttp": MagicMock()}):
+        mock_resp = MagicMock()
+        mock_resp.status_code = 200
+        mock_resp.raise_for_status = lambda: None
+        mock_resp.json = AsyncMock(return_value={"choices": [{"message": {"content": "<|speech_200|>"}}]})
+
+        # Mock the 'async with session.post(...)' pattern
+        # calling session.post() returns an object whose __aenter__ returns mock_resp
+        mock_session.post.return_value.__aenter__ = AsyncMock(return_value=mock_resp)
+        mock_session.post.return_value.__aexit__ = AsyncMock(return_value=None)
+
+        audio = await remote_tts._infer_chunk_async(
+            mock_session, "chunk", [1], "ref_text", 1.0, 50
+        )
+        assert isinstance(audio, np.ndarray)
+        assert len(audio) == 1000

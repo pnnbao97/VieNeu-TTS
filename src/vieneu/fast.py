@@ -6,7 +6,7 @@ import gc
 import logging
 from collections import defaultdict
 from .base import BaseVieneuTTS
-from .utils import _compile_codec_with_triton, extract_speech_ids, _linear_overlap_add
+from .utils import _compile_codec_with_triton, extract_speech_ids, _linear_overlap_add, normalize_device
 from vieneu_utils.phonemize_text import phonemize_batch
 from vieneu_utils.core_utils import split_text_into_chunks, join_audio_chunks
 
@@ -122,7 +122,7 @@ class FastVieNeuTTS(BaseVieneuTTS):
         return recon[0, 0, :]
 
 
-    def infer(self, text: str, ref_audio: Optional[Union[str, Path]] = None, ref_codes: Optional[Union[np.ndarray, torch.Tensor]] = None, ref_text: Optional[str] = None, max_chars: int = 256, silence_p: float = 0.15, crossfade_p: float = 0.0, voice: Optional[Dict[str, Any]] = None, temperature: float = 1.0, top_k: int = 50, skip_normalize: bool = False) -> np.ndarray:
+    def infer(self, text: str, ref_audio: Optional[Union[str, Path]] = None, ref_codes: Optional[Union[np.ndarray, torch.Tensor]] = None, ref_text: Optional[str] = None, max_chars: int = 256, silence_p: float = 0.15, crossfade_p: float = 0.0, voice: Optional[Dict[str, Any]] = None, temperature: float = 1.0, top_k: int = 50, skip_normalize: bool = False, apply_watermark: bool = True) -> np.ndarray:
 
         ref_codes, ref_text = self._resolve_ref_voice(voice, ref_audio, ref_codes, ref_text)
 
@@ -140,10 +140,13 @@ class FastVieNeuTTS(BaseVieneuTTS):
             prompt = self._format_prompt(ref_codes, ref_text, chunks[0])
             responses = self.backbone([prompt], gen_config=self.gen_config, do_preprocess=False)
             wav = self._decode(responses[0].text)
-            wav = self._apply_watermark(wav)
+            if apply_watermark:
+                wav = self._apply_watermark(wav)
         else:
-            all_wavs = self.infer_batch(chunks, ref_codes, ref_text, voice=voice, temperature=temperature, top_k=top_k, skip_normalize=True)
+            all_wavs = self.infer_batch(chunks, ref_codes, ref_text, voice=voice, temperature=temperature, top_k=top_k, skip_normalize=True, apply_watermark=False)
             wav = join_audio_chunks(all_wavs, self.sample_rate, silence_p, crossfade_p)
+            if apply_watermark:
+                wav = self._apply_watermark(wav)
 
         return wav
 
@@ -191,12 +194,8 @@ class FastVieNeuTTS(BaseVieneuTTS):
         for chunk in chunks:
             yield from self._infer_stream_single(chunk, ref_codes, ref_text)
 
-    def _infer_stream_single(self, text: str, ref_codes: Union[np.ndarray, torch.Tensor, List[int]], ref_text: str) -> Generator[np.ndarray, None, None]:
-        if isinstance(ref_codes, (torch.Tensor, np.ndarray)):
-            ref_codes_list = ref_codes.flatten().tolist()
-        else:
-            ref_codes_list = ref_codes
-
+    def _infer_stream_single(self, text: str, ref_codes: Any, ref_text: str) -> Generator[np.ndarray, None, None]:
+        ref_codes_list = self.to_list(ref_codes)
         prompt = self._format_prompt(ref_codes_list, ref_text, text)
         audio_cache = []
         token_cache = [f"<|speech_{idx}|>" for idx in ref_codes_list]

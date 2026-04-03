@@ -9,6 +9,21 @@ logger = logging.getLogger("Vieneu.Utils")
 # Persistent cache for weights to avoid recomputing if frame_length is constant
 _WEIGHT_CACHE: Dict[int, np.ndarray] = {}
 
+def normalize_device(device: str) -> str:
+    """
+    Standardize device strings across backends.
+    Maps 'gpu', 'cuda:*' to 'cuda', handles 'mps', 'xpu', and defaults to 'cpu'.
+    """
+    d = device.lower()
+    if "cuda" in d or d == "gpu":
+        return "cuda"
+    if d == "mps":
+        import torch
+        return "mps" if torch.backends.mps.is_available() else "cpu"
+    if d == "xpu":
+        return "xpu"
+    return "cpu"
+
 def _linear_overlap_add(frames: List[np.ndarray], stride: int) -> np.ndarray:
     """
     Perform linear overlap-add on a list of audio frames.

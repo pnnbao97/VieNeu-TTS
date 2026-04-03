@@ -21,12 +21,19 @@ def mock_torch_components():
     model = MagicMock()
     model.device = torch.device("cpu")
     model.to.return_value = model
-    model.generate.return_value = torch.zeros((2, 20), dtype=torch.long)
+    model_gen_output = MagicMock()
+    model_gen_output.cpu.return_value.numpy.return_value.tolist.return_value = [1001, 1002]
+    model.generate.return_value = model_gen_output
+    # Fix for batch generation which uses output_tokens[i, input_length:]
+    model_gen_output.__getitem__.return_value = MagicMock()
+    model_gen_output.__getitem__.return_value.cpu.return_value.numpy.return_value.tolist.return_value = [1001, 1002]
 
     codec = MagicMock()
     codec.device = torch.device("cpu")
     codec.sample_rate = 24000
-    codec.decode_code.return_value = torch.zeros((1, 1, 4800))
+    codec_decode_output = MagicMock()
+    codec_decode_output.cpu.return_value.numpy.return_value = np.zeros((1, 1, 4800))
+    codec.decode_code.return_value = codec_decode_output
     codec.encode_code.return_value = torch.zeros((1, 1, 10), dtype=torch.long)
 
     return {"tokenizer": tokenizer, "model": model, "codec": codec}

@@ -32,18 +32,17 @@ class RemoteVieNeuTTS(BaseVieneuTTS):
             codec_repo=codec_repo,
             codec_device=codec_device
         )
-
+        # Override some streaming defaults for remote
         self.streaming_frames_per_chunk = 10
-        self.streaming_lookforward = 5
-        self.streaming_lookback = 50
         self.streaming_stride_samples = self.streaming_frames_per_chunk * self.hop_length
+
         self._load_voices_from_repo(model_name, hf_token)
 
     def _load_backbone(self, backbone_repo, backbone_device, hf_token=None):
         pass
 
 
-    def infer(self, text: str, ref_audio: Optional[Union[str, Path]] = None, ref_codes: Optional[Union[np.ndarray, 'torch.Tensor']] = None, ref_text: Optional[str] = None, max_chars: int = 256, silence_p: float = 0.15, crossfade_p: float = 0.0, voice: Optional[Dict[str, Any]] = None, temperature: float = 1.0, top_k: int = 50, skip_normalize: bool = False, **kwargs) -> np.ndarray:
+    def infer(self, text: str, ref_audio: Optional[Union[str, Path]] = None, ref_codes: Optional[Union[np.ndarray, 'torch.Tensor']] = None, ref_text: Optional[str] = None, max_chars: int = 256, silence_p: float = 0.15, crossfade_p: float = 0.0, voice: Optional[Dict[str, Any]] = None, temperature: float = 1.0, top_k: int = 50, skip_normalize: bool = False, apply_watermark: bool = True, **kwargs) -> np.ndarray:
 
         ref_codes, ref_text = self._resolve_ref_voice(voice, ref_audio, ref_codes, ref_text)
 
@@ -70,7 +69,9 @@ class RemoteVieNeuTTS(BaseVieneuTTS):
                 response.raise_for_status()
                 output_str = response.json()["choices"][0]["message"]["content"]
                 wav = self._decode(output_str)
-                return self._apply_watermark(wav)
+                if apply_watermark:
+                    wav = self._apply_watermark(wav)
+                return wav
             except Exception as e:
                 logger.error(f"Error during remote inference: {e}")
                 return np.array([], dtype=np.float32)
@@ -105,19 +106,7 @@ class RemoteVieNeuTTS(BaseVieneuTTS):
             "stream": True
         }
 
-        try:
-            import torch
-            if isinstance(ref_codes, torch.Tensor):
-                ref_codes_list = ref_codes.flatten().tolist()
-            elif isinstance(ref_codes, np.ndarray):
-                ref_codes_list = ref_codes.flatten().tolist()
-            else:
-                ref_codes_list = ref_codes
-        except ImportError:
-            if isinstance(ref_codes, np.ndarray):
-                ref_codes_list = ref_codes.flatten().tolist()
-            else:
-                ref_codes_list = ref_codes
+        ref_codes_list = self.to_list(ref_codes)
 
         audio_cache: List[np.ndarray] = []
         token_cache: List[str] = [f"<|speech_{idx}|>" for idx in ref_codes_list]

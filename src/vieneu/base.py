@@ -21,6 +21,13 @@ class BaseVieneuTTS(ABC):
         self.max_context = 2048
         self.hop_length = 480
 
+        # Default streaming parameters
+        self.streaming_overlap_frames = 1
+        self.streaming_frames_per_chunk = 50
+        self.streaming_lookforward = 5
+        self.streaming_lookback = 50
+        self.streaming_stride_samples = self.streaming_frames_per_chunk * self.hop_length
+
         self.assets_dir = Path(__file__).parent / "assets"
         self._preset_voices: Dict[str, Any] = {}
         self._default_voice: Optional[str] = None
@@ -341,9 +348,30 @@ class BaseVieneuTTS(ABC):
             return self.watermarker.apply_watermark(wav, sample_rate=self.sample_rate)
         return wav
 
+    def to_list(self, codes: Any) -> List[int]:
+        """Convert reference codes (Tensor, Array, List) to a Python list of integers."""
+        if isinstance(codes, list):
+            return codes
+        if isinstance(codes, np.ndarray):
+            return codes.flatten().tolist()
+
+        # Check for torch without importing it at module level
+        try:
+            import torch
+            if isinstance(codes, torch.Tensor):
+                return codes.flatten().tolist()
+        except ImportError:
+            pass
+
+        # Fallback for other array-like types
+        if hasattr(codes, "tolist"):
+            return codes.flatten().tolist() if hasattr(codes, "flatten") else codes.tolist()
+
+        return list(codes)
+
     def _format_prompt(
         self,
-        ref_codes: Union[List[int], 'torch.Tensor', np.ndarray],
+        ref_codes: Any,
         ref_text: str,
         input_text: str,
         ref_phonemes: Optional[str] = None,
@@ -354,18 +382,7 @@ class BaseVieneuTTS(ABC):
         Common implementation for LMDeploy (Fast) and Remote backends.
         Standard backend uses a specialized chat template via tokenizer.
         """
-        if isinstance(ref_codes, (np.ndarray, list)):
-            ref_codes_list = np.array(ref_codes).flatten().tolist()
-        else:
-            # Assume it's a torch tensor if torch is installed
-            try:
-                import torch
-                if isinstance(ref_codes, torch.Tensor):
-                    ref_codes_list = ref_codes.flatten().tolist()
-                else:
-                    ref_codes_list = ref_codes
-            except ImportError:
-                ref_codes_list = ref_codes
+        ref_codes_list = self.to_list(ref_codes)
 
         # Import inside method to avoid potential circular dependencies between
         # base TTS and phonemization utilities.
@@ -381,7 +398,7 @@ class BaseVieneuTTS(ABC):
         )
 
     @abstractmethod
-    def infer(self, text: str, **kwargs: Any) -> np.ndarray:
+    def infer(self, text: str, apply_watermark: bool = True, **kwargs: Any) -> np.ndarray:
         """Main inference method for single text."""
         pass
 
