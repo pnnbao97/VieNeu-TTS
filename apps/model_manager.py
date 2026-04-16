@@ -87,34 +87,39 @@ def get_available_devices() -> list[str]:
         pass
     return devices
 
-def get_model_status_message() -> str:
+def get_model_status_message(is_xpu: bool = False) -> str:
     """Reconstruct status message from global state"""
     global model_loaded, tts, using_lmdeploy, current_backbone, current_codec
     if not model_loaded or tts is None:
         return "⏳ Chưa tải model."
 
-    if "v2-Turbo" in (current_backbone or ""):
-        backend_name = "⚡ Turbo (v2)"
-    elif using_lmdeploy:
-        backend_name = "🚀 LMDeploy (Optimized)"
+    if is_xpu:
+        backend_name = "🚀 Intel XPU (BFloat16 native)"
+        device_info = "XPU"
+        codec_device = "CPU" if "ONNX" in (current_codec or "") else "XPU"
     else:
-        backend_name = "📦 Standard"
+        if "v2-Turbo" in (current_backbone or ""):
+            backend_name = "⚡ Turbo (v2)"
+        elif using_lmdeploy:
+            backend_name = "🚀 LMDeploy (Optimized)"
+        else:
+            backend_name = "📦 Standard"
 
-    try:
-        import torch
-        has_mps = torch.backends.mps.is_available()
-        has_cuda = torch.cuda.is_available()
-    except:
-        has_mps = has_cuda = False
+        try:
+            import torch
+            has_mps = torch.backends.mps.is_available()
+            has_cuda = torch.cuda.is_available()
+        except:
+            has_mps = has_cuda = False
 
-    device_info = "GPU (CUDA)" if (using_lmdeploy or "CUDA" in (current_backbone or "")) else ("MPS (Metal)" if has_mps else "Auto")
+        device_info = "GPU (CUDA)" if (using_lmdeploy or "CUDA" in (current_backbone or "")) else ("MPS (Metal)" if has_mps else "Auto")
 
-    if "v2-Turbo" in (current_backbone or ""):
-        codec_device = "GPU/MPS" if (has_cuda or has_mps) else "CPU"
-    elif "ONNX" in (current_codec or ""):
-        codec_device = "CPU"
-    else:
-        codec_device = "GPU/MPS" if (has_cuda or has_mps) else "CPU"
+        if "v2-Turbo" in (current_backbone or ""):
+            codec_device = "GPU/MPS" if (has_cuda or has_mps) else "CPU"
+        elif "ONNX" in (current_codec or ""):
+            codec_device = "CPU"
+        else:
+            codec_device = "GPU/MPS" if (has_cuda or has_mps) else "CPU"
 
     opt_info = ""
     if using_lmdeploy and hasattr(tts, 'get_optimization_stats'):
@@ -134,10 +139,10 @@ def get_model_status_message() -> str:
         f"🎵 Codec: {current_codec} on {codec_device}{opt_info}"
     )
 
-def restore_ui_state():
+def restore_ui_state(is_xpu: bool = False):
     """Update UI components based on persistence"""
     global model_loaded
-    msg = get_model_status_message()
+    msg = get_model_status_message(is_xpu=is_xpu)
     return (
         msg,
         gr.update(interactive=model_loaded), # btn_generate
@@ -174,15 +179,18 @@ def cleanup_gpu_memory():
     gc.collect()
 
 def load_model(backbone_choice: str, codec_choice: str, device_choice: str,
-               force_lmdeploy: bool, custom_model_id: str = "", custom_base_model: str = "",
-               custom_hf_token: str = ""):
+               force_lmdeploy: bool = False, custom_model_id: str = "", custom_base_model: str = "",
+               custom_hf_token: str = "", is_xpu: bool = False):
     """Load model with optimizations and max batch size control"""
     global tts, current_backbone, current_codec, model_loaded, using_lmdeploy
     lmdeploy_error_reason = None
     model_loaded = False
 
+    loading_msg = "⏳ Đang tải model lên Intel XPU... Vui lòng chờ trong giây lát..." if is_xpu else \
+                  "⏳ Đang tải model với tối ưu hóa... Lưu ý: Quá trình này sẽ tốn thời gian. Vui lòng kiên nhẫn."
+
     yield (
-        "⏳ Đang tải model với tối ưu hóa... Lưu ý: Quá trình này sẽ tốn thời gian. Vui lòng kiên nhẫn.",
+        loading_msg,
         gr.update(interactive=False),
         gr.update(interactive=False),
         gr.update(interactive=False),
@@ -245,14 +253,16 @@ def load_model(backbone_choice: str, codec_choice: str, device_choice: str,
              else:
                  use_lmdeploy = force_lmdeploy and should_use_lmdeploy("VieNeu-TTS (GPU)", device_choice)
 
-        if "v2-Turbo" in backbone_choice:
+        if is_xpu:
+            should_use_generic_fast = False
+        elif "v2-Turbo" in backbone_choice:
              should_use_generic_fast = False
         elif custom_loading:
              should_use_generic_fast = False
         else:
              should_use_generic_fast = force_lmdeploy and should_use_lmdeploy(backbone_choice, device_choice)
 
-        if should_use_generic_fast:
+        if not is_xpu and should_use_generic_fast:
             use_lmdeploy = True
 
         if use_lmdeploy:
@@ -361,7 +371,10 @@ def load_model(backbone_choice: str, codec_choice: str, device_choice: str,
 
         if not use_lmdeploy:
             print(f"📦 Using original backend")
-            if device_choice == "Auto":
+            if is_xpu:
+                backbone_device = "xpu"
+                codec_device = "cpu" if "ONNX" in codec_choice else "xpu"
+            elif device_choice == "Auto":
                 repo_lower = backbone_config['repo'].lower()
                 is_gguf_backbone = "gguf" in repo_lower
                 if is_gguf_backbone:
@@ -406,7 +419,16 @@ def load_model(backbone_choice: str, codec_choice: str, device_choice: str,
             if "gguf" in backbone_config['repo'].lower() and backbone_device == "cuda":
                 backbone_device = "gpu"
 
-            if "v2-Turbo" in backbone_choice:
+            if is_xpu:
+                from vieneu.core_xpu import XPUVieNeuTTS
+                tts = XPUVieNeuTTS(
+                    backbone_repo=backbone_config["repo"],
+                    backbone_device=backbone_device,
+                    codec_repo=codec_config["repo"],
+                    codec_device=codec_device,
+                    hf_token=custom_hf_token
+                )
+            elif "v2-Turbo" in backbone_choice:
                 mode = "turbo_gpu" if "GPU" in backbone_choice else "turbo"
                 tts = Vieneu(
                     mode=mode,
@@ -427,8 +449,10 @@ def load_model(backbone_choice: str, codec_choice: str, device_choice: str,
                 )
 
             if is_merged_lora and custom_loading and not using_lmdeploy:
+                merge_msg = f"🔄 Đang tải và merge LoRA adapter: {custom_model_id} trên XPU..." if is_xpu else \
+                            f"🔄 Đang tải và merge LoRA adapter: {custom_model_id}..."
                 yield (
-                    f"🔄 Đang tải và merge LoRA adapter: {custom_model_id}...",
+                    merge_msg,
                     gr.update(interactive=False), gr.update(interactive=False), gr.update(interactive=False), gr.update(),
                     gr.update(), gr.update(), gr.update(), gr.update()
                 )
@@ -447,7 +471,7 @@ def load_model(backbone_choice: str, codec_choice: str, device_choice: str,
         current_codec = codec_choice
         model_loaded = True
 
-        success_msg = get_model_status_message()
+        success_msg = get_model_status_message(is_xpu=is_xpu)
         if lmdeploy_error_reason:
             success_msg += f"\n\n⚠️ **Cảnh báo:** Không thể kích hoạt LMDeploy do lỗi: {lmdeploy_error_reason}"
 

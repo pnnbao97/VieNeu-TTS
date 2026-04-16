@@ -11,7 +11,7 @@ import apps.model_manager as model_manager
 
 def synthesize_speech(text: str, voice_choice: str, custom_audio, custom_text: str,
                       mode_tab: str, generation_mode: str, use_batch: bool, max_batch_size_run: int,
-                      temperature: float, max_chars_chunk: int, _text_normalizer):
+                      temperature: float, max_chars_chunk: int, _text_normalizer, is_xpu: bool = False):
     """Synthesis with optimization support and max batch size control"""
 
     if not model_manager.model_loaded or model_manager.tts is None:
@@ -63,7 +63,10 @@ def synthesize_speech(text: str, voice_choice: str, custom_audio, custom_text: s
 
     # === STANDARD MODE ===
     if generation_mode == "Standard (Một lần)":
-        backend_name = "LMDeploy" if model_manager.using_lmdeploy else "Standard"
+        if is_xpu:
+            backend_name = "Intel XPU"
+        else:
+            backend_name = "LMDeploy" if model_manager.using_lmdeploy else "Standard"
         normalized_text = _text_normalizer.normalize(raw_text)
         is_v2_turbo = "v2-Turbo" in (model_manager.current_backbone or "")
 
@@ -81,7 +84,27 @@ def synthesize_speech(text: str, voice_choice: str, custom_audio, custom_text: s
         start_time = time.time()
 
         try:
-            if is_v2_turbo:
+            if is_xpu:
+                if use_batch and total_chunks > 1:
+                    for i in range(0, total_chunks, max_batch_size_run):
+                        yield None, f"⏳ Đang xử lý batch {i//max_batch_size_run + 1} ..."
+                        batch_chunks = text_chunks[i : i + max_batch_size_run]
+                        batch_results = model_manager.tts.infer_batch(
+                            texts=batch_chunks, ref_codes=ref_codes, ref_text=ref_text_raw,
+                            temperature=temperature, skip_normalize=True
+                        )
+                        if batch_results:
+                            all_wavs.extend(batch_results)
+                else:
+                    for i, chunk in enumerate(text_chunks):
+                        yield None, f"⏳ Đang xử lý đoạn {i+1}/{total_chunks} (XPU Bfloat16)..."
+                        chunk_wav = model_manager.tts.infer(
+                            chunk, ref_codes=ref_codes, ref_text=ref_text_raw,
+                            temperature=temperature, skip_normalize=True
+                        )
+                        if chunk_wav is not None and len(chunk_wav) > 0:
+                            all_wavs.append(chunk_wav)
+            elif is_v2_turbo:
                 for i, chunk in enumerate(text_chunks):
                     yield None, f"⚡ Turbo v2: Đang xử lý đoạn {i+1}/{total_chunks}..."
                     chunk_wav = model_manager.tts.infer(
@@ -127,7 +150,8 @@ def synthesize_speech(text: str, voice_choice: str, custom_audio, custom_text: s
 
             process_time = time.time() - start_time
             speed_info = f", Tốc độ: {len(final_wav)/sr/process_time:.2f}x realtime" if process_time > 0 else ""
-            yield output_path, f"✅ Hoàn tất! (Thời gian: {process_time:.2f}s{speed_info})"
+            backend_note = f" (Backend: {backend_name})"
+            yield output_path, f"✅ Hoàn tất! (Thời gian: {process_time:.2f}s{speed_info}){backend_note}"
 
             if model_manager.using_lmdeploy and hasattr(model_manager.tts, 'cleanup_memory'):
                 model_manager.tts.cleanup_memory()
@@ -233,7 +257,10 @@ def synthesize_speech(text: str, voice_choice: str, custom_audio, custom_text: s
                 break
 
         full_audio_buffer = []
-        backend_info = "🚀 LMDeploy" if model_manager.using_lmdeploy else "📦 Standard"
+        if is_xpu:
+            backend_info = "Intel XPU"
+        else:
+            backend_info = "🚀 LMDeploy" if model_manager.using_lmdeploy else "📦 Standard"
         for sr, audio_data in pre_buffer:
             full_audio_buffer.append(audio_data)
             yield (sr, audio_data), f"🔊 Đang phát ({backend_info})..."

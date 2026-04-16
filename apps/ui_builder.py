@@ -3,7 +3,7 @@ import os
 import soundfile as sf
 import apps.model_manager as model_manager
 
-def build_ui(BACKBONE_CONFIGS, CODEC_CONFIGS, DEFAULT_TEXT_GPU, DEFAULT_TEXT_TURBO, get_available_devices):
+def build_ui(BACKBONE_CONFIGS, CODEC_CONFIGS, DEFAULT_TEXT_GPU, DEFAULT_TEXT_TURBO, get_available_devices, is_xpu: bool = False):
     # Favicon (Parrot Emoji)
     head_html = """
     <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🦜</text></svg>">
@@ -133,13 +133,16 @@ def build_ui(BACKBONE_CONFIGS, CODEC_CONFIGS, DEFAULT_TEXT_GPU, DEFAULT_TEXT_TUR
         button_primary_background_fill_hover="linear-gradient(90deg, #4f46e5 0%, #0284c7 100%)",
     )
 
-    with gr.Blocks(theme=theme, css=css, title="VieNeu-TTS", head=head_html) as demo:
+    title = "VieNeu-TTS (XPU)" if is_xpu else "VieNeu-TTS"
+    header_text = "VieNeu-TTS Studio (Intel XPU Edition)" if is_xpu else "VieNeu-TTS Studio"
+
+    with gr.Blocks(theme=theme, css=css, title=title, head=head_html) as demo:
         with gr.Column(elem_classes="container"):
-            gr.HTML("""
+            gr.HTML(f"""
     <div class="header-box">
         <h1 class="header-title">
             <span class="header-icon">🦜</span>
-            <span class="gradient-text">VieNeu-TTS Studio</span>
+            <span class="gradient-text">{header_text}</span>
         </h1>
         <div class="model-card-content">
             <div class="model-card-item">
@@ -168,27 +171,36 @@ def build_ui(BACKBONE_CONFIGS, CODEC_CONFIGS, DEFAULT_TEXT_GPU, DEFAULT_TEXT_TUR
 
             with gr.Group():
                 with gr.Row():
-                    if "VieNeu-TTS (GPU)" in BACKBONE_CONFIGS:
+                    if is_xpu:
                         default_backbone = "VieNeu-TTS (GPU)"
-                    elif "VieNeu-TTS-v2-Turbo (GPU)" in BACKBONE_CONFIGS:
-                        default_backbone = "VieNeu-TTS-v2-Turbo (GPU)"
-                    elif "VieNeu-TTS-v2-Turbo (CPU)" in BACKBONE_CONFIGS:
-                        default_backbone = "VieNeu-TTS-v2-Turbo (CPU)"
-                    else:
-                        default_backbone = list(BACKBONE_CONFIGS.keys())[0]
-
-                    if "Turbo" in default_backbone:
-                        default_codec = "VieNeu-Codec"
-                        default_temp = 0.4
-                        default_text = DEFAULT_TEXT_TURBO
-                    else:
-                        default_codec = "NeuCodec (Distill)" if "NeuCodec (Distill)" in CODEC_CONFIGS else list(CODEC_CONFIGS.keys())[0]
-                        default_temp = 0.7
+                        default_codec = "NeuCodec (Distill)"
+                        default_temp = 1.0
                         default_text = DEFAULT_TEXT_GPU
+                        backbone_select = gr.Dropdown(list(BACKBONE_CONFIGS.keys()) + ["Custom Model"], value=default_backbone, label="🦜 Backbone")
+                        codec_select = gr.Dropdown(list(CODEC_CONFIGS.keys()), value=default_codec, label="🎵 Codec")
+                        device_choice = gr.Radio(get_available_devices(), value="XPU", label="🖥️ Device", interactive=False)
+                    else:
+                        if "VieNeu-TTS (GPU)" in BACKBONE_CONFIGS:
+                            default_backbone = "VieNeu-TTS (GPU)"
+                        elif "VieNeu-TTS-v2-Turbo (GPU)" in BACKBONE_CONFIGS:
+                            default_backbone = "VieNeu-TTS-v2-Turbo (GPU)"
+                        elif "VieNeu-TTS-v2-Turbo (CPU)" in BACKBONE_CONFIGS:
+                            default_backbone = "VieNeu-TTS-v2-Turbo (CPU)"
+                        else:
+                            default_backbone = list(BACKBONE_CONFIGS.keys())[0]
 
-                    backbone_select = gr.Dropdown(list(BACKBONE_CONFIGS.keys()) + ["Custom Model"], value=default_backbone, label="🦜 Backbone")
-                    codec_select = gr.Dropdown(list(CODEC_CONFIGS.keys()), value=default_codec, label="🎵 Codec", interactive=False)
-                    device_choice = gr.Radio(get_available_devices(), value="Auto", label="🖥️ Device")
+                        if "Turbo" in default_backbone:
+                            default_codec = "VieNeu-Codec"
+                            default_temp = 0.4
+                            default_text = DEFAULT_TEXT_TURBO
+                        else:
+                            default_codec = "NeuCodec (Distill)" if "NeuCodec (Distill)" in CODEC_CONFIGS else list(CODEC_CONFIGS.keys())[0]
+                            default_temp = 0.7
+                            default_text = DEFAULT_TEXT_GPU
+
+                        backbone_select = gr.Dropdown(list(BACKBONE_CONFIGS.keys()) + ["Custom Model"], value=default_backbone, label="🦜 Backbone")
+                        codec_select = gr.Dropdown(list(CODEC_CONFIGS.keys()), value=default_codec, label="🎵 Codec", interactive=False)
+                        device_choice = gr.Radio(get_available_devices(), value="Auto", label="🖥️ Device")
 
                 with gr.Row(visible=False) as custom_model_group:
                     custom_backbone_model_id = gr.Textbox(label="📦 Custom Model ID", placeholder="pnnbao-ump/VieNeu-TTS-0.3B-lora-ngoc-huyen", info="Nhập HuggingFace Repo ID hoặc đường dẫn local", scale=2)
@@ -196,26 +208,37 @@ def build_ui(BACKBONE_CONFIGS, CODEC_CONFIGS, DEFAULT_TEXT_GPU, DEFAULT_TEXT_TUR
                     base_model_choices = [k for k in BACKBONE_CONFIGS.keys() if "turbo" not in k.lower() and k != "Custom Model"]
                     custom_backbone_base_model = gr.Dropdown(base_model_choices, label="🔗 Base Model (cho LoRA)", value=base_model_choices[0] if base_model_choices else None, visible=False, info="Model gốc để merge với LoRA (GPU Only)", scale=1)
 
-                with gr.Row():
-                    use_lmdeploy_cb = gr.Checkbox(value=True, label="🚀 Optimize with LMDeploy (Khuyên dùng cho NVIDIA GPU)", info="Tick nếu bạn dùng GPU để tăng tốc độ tổng hợp đáng kể.")
+                if not is_xpu:
+                    with gr.Row():
+                        use_lmdeploy_cb = gr.Checkbox(value=True, label="🚀 Optimize with LMDeploy (Khuyên dùng cho NVIDIA GPU)", info="Tick nếu bạn dùng GPU để tăng tốc độ tổng hợp đáng kể.")
+                else:
+                    use_lmdeploy_cb = gr.State(False)
 
                 gr.Markdown("💡 **Sử dụng Custom Model:** Chọn \"Custom Model\" để tải LoRA adapter hoặc bất kỳ model nào được finetune từ **VieNeu-TTS** hoặc **VieNeu-TTS-0.3B**.")
 
-                gr.HTML("""
-                <div class="warning-banner">
-                    <div class="warning-banner-title">🦜 Gợi ý tối ưu hiệu năng</div>
-                    <div class="warning-banner-grid">
-                        <div class="warning-banner-item">
-                            <strong>🐆 Hệ máy GPU</strong>
-                            <div class="warning-banner-content">Để có độ chính xác cao nhất và giọng đọc tự nhiên nhất, hãy sử dụng <b>VieNeu-TTS (Mặc định - GPU)</b>. Chọn <b>VieNeu-TTS-0.3B (GPU)</b> để tăng tốc độ lên gấp 2 lần.</div>
-                        </div>
-                        <div class="warning-banner-item" style="background: #dcfce7; border-color: #86efac;">
-                            <strong style="color: #15803d;">🚀 VieNeu-TTS-v2</strong>
-                            <div class="warning-banner-content" style="color: #166534;">Phiên bản <b>VieNeu-TTS-v2</b> đang trong quá trình phát triển nhằm hỗ trợ <b>song ngữ Anh-Việt</b>. Phiên bản <b>v2 Turbo</b> được ra mắt trước nhằm mục đích thử nghiệm.</div>
+                if is_xpu:
+                    gr.HTML("""
+                    <div class="warning-banner">
+                        <div class="warning-banner-title">⚡ Chế độ tối ưu hóa cho Intel Arc GPU (XPU)</div>
+                        <div class="warning-banner-content">Ứng dụng đang chạy trên pytorch nightly tối ưu hóa riêng cho card đồ họa Intel (PyTorch XPU).<br>Lần tạo giọng nói <b>đầu tiên</b> sẽ lâu hơn 1 chút.</div>
+                    </div>
+                    """)
+                else:
+                    gr.HTML("""
+                    <div class="warning-banner">
+                        <div class="warning-banner-title">🦜 Gợi ý tối ưu hiệu năng</div>
+                        <div class="warning-banner-grid">
+                            <div class="warning-banner-item">
+                                <strong>🐆 Hệ máy GPU</strong>
+                                <div class="warning-banner-content">Để có độ chính xác cao nhất và giọng đọc tự nhiên nhất, hãy sử dụng <b>VieNeu-TTS (Mặc định - GPU)</b>. Chọn <b>VieNeu-TTS-0.3B (GPU)</b> để tăng tốc độ lên gấp 2 lần.</div>
+                            </div>
+                            <div class="warning-banner-item" style="background: #dcfce7; border-color: #86efac;">
+                                <strong style="color: #15803d;">🚀 VieNeu-TTS-v2</strong>
+                                <div class="warning-banner-content" style="color: #166534;">Phiên bản <b>VieNeu-TTS-v2</b> đang trong quá trình phát triển nhằm hỗ trợ <b>song ngữ Anh-Việt</b>. Phiên bản <b>v2 Turbo</b> được ra mắt trước nhằm mục đích thử nghiệm.</div>
+                            </div>
                         </div>
                     </div>
-                </div>
-                """)
+                    """)
 
                 btn_load = gr.Button("🔄 Tải Model", variant="primary")
                 model_status = gr.Markdown("⏳ Chưa tải model.")
@@ -244,13 +267,20 @@ def build_ui(BACKBONE_CONFIGS, CODEC_CONFIGS, DEFAULT_TEXT_GPU, DEFAULT_TEXT_TUR
 
                     generation_mode = gr.Radio(["Standard (Một lần)"], value="Standard (Một lần)", label="Chế độ sinh")
                     with gr.Row():
-                        use_batch = gr.Checkbox(value=True, label="⚡ Batch Processing", info="Xử lý nhiều đoạn cùng lúc (GPU + LMDeploy)")
-                        max_batch_size_run = gr.Slider(minimum=1, maximum=16, value=4, step=1, label="📊 Batch Size (Generation)")
+                        if is_xpu:
+                            use_batch = gr.Checkbox(value=True, label="⚡ Batch Processing", info="Xử lý nhiều đoạn cùng lúc. Nên luôn chọn bật để tăng tốc độ.")
+                            max_batch_size_run = gr.Slider(minimum=1, maximum=256, value=128, step=1, label="📊 Batch Size (Generation)")
+                        else:
+                            use_batch = gr.Checkbox(value=True, label="⚡ Batch Processing", info="Xử lý nhiều đoạn cùng lúc (GPU + LMDeploy)")
+                            max_batch_size_run = gr.Slider(minimum=1, maximum=16, value=4, step=1, label="📊 Batch Size (Generation)")
 
                     with gr.Accordion("⚙️ Cài đặt nâng cao (Generation)", open=False):
                         with gr.Row():
                             temperature_slider = gr.Slider(minimum=0.1, maximum=1.5, value=default_temp, step=0.1, label="🌡️ Temperature")
-                            max_chars_chunk_slider = gr.Slider(minimum=128, maximum=512, value=256, step=32, label="📝 Max Chars per Chunk")
+                            if is_xpu:
+                                max_chars_chunk_slider = gr.Slider(minimum=64, maximum=512, value=128, step=16, label="📝 Max Chars per Chunk")
+                            else:
+                                max_chars_chunk_slider = gr.Slider(minimum=128, maximum=512, value=256, step=32, label="📝 Max Chars per Chunk")
 
                     current_mode_state = gr.State("preset_mode")
                     with gr.Row():
