@@ -110,3 +110,65 @@ RE_SPEECH_TOKEN = re.compile(r"<\|speech_(\d+)\|>")
 def extract_speech_ids(codes_str: str) -> List[int]:
     """Extract speech token IDs from a string using regex."""
     return [int(num) for num in RE_SPEECH_TOKEN.findall(codes_str)]
+
+class NeuCodecOnnx:
+    """
+    Lightweight ONNX-based decoder for NeuCodec.
+    Does not require PyTorch or the full neucodec package.
+    """
+    def __init__(self, onnx_path: str):
+        try:
+            import onnxruntime
+        except ImportError as e:
+            raise ImportError(
+                "Failed to import `onnxruntime`. \n"
+                "Please install it via: pip install onnxruntime"
+            ) from e
+
+        # Load model
+        so = onnxruntime.SessionOptions()
+        so.graph_optimization_level = onnxruntime.GraphOptimizationLevel.ORT_ENABLE_ALL
+        
+        # Determine providers
+        # Default to CPU for now as requested for 'lightweight'
+        providers = ["CPUExecutionProvider"]
+        
+        self.session = onnxruntime.InferenceSession(
+            onnx_path,
+            sess_options=so,
+            providers=providers
+        )
+        self.sample_rate = 24_000
+
+    @classmethod
+    def from_pretrained(cls, repo_id: str, filename: str = "model.onnx", hf_token: Optional[str] = None):
+        from huggingface_hub import hf_hub_download
+        onnx_path = hf_hub_download(
+            repo_id=repo_id,
+            filename=filename,
+            token=hf_token
+        )
+        return cls(onnx_path)
+
+    def decode_code(self, codes: np.ndarray) -> np.ndarray:
+        """
+        Args:
+            codes: np.ndarray [B, 1, F], 50hz FSQ codes
+
+        Returns:
+            recon: np.ndarray [B, 1, T], reconstructed 24kHz audio
+        """
+        if not isinstance(codes, np.ndarray):
+            codes = np.array(codes)
+        
+        if len(codes.shape) == 1:
+            codes = codes[np.newaxis, np.newaxis, :]
+        elif len(codes.shape) == 2:
+            codes = codes[np.newaxis, :]
+
+        # Run decoder
+        recon = self.session.run(
+            None, {"codes": codes.astype(np.int32)}
+        )[0].astype(np.float32)
+        
+        return recon

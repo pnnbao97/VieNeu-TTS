@@ -45,19 +45,26 @@ class BaseVieneuTTS(ABC):
         """Universal codec loader for all backends."""
         logger.info(f"📦 Loading codec from: {codec_repo} on {codec_device} ...")
 
-        if codec_repo == "neuphonic/neucodec-onnx-decoder-int8":
+        if any(x in codec_repo.lower() for x in ["onnx", "vieneu-codec"]) or codec_repo == "neuphonic/neucodec-onnx-decoder-int8":
             if codec_device != "cpu":
                 logger.warning("⚠️ ONNX decoder only runs on CPU. Ignoring device selection.")
             try:
-                from neucodec import NeuCodecOnnxDecoder
-                self.codec = NeuCodecOnnxDecoder.from_pretrained(codec_repo)
+                from .utils import NeuCodecOnnx
+                self.codec = NeuCodecOnnx.from_pretrained(codec_repo)
                 self._is_onnx_codec = True
                 return
-            except ImportError as e:
-                raise ImportError(
-                    "The 'neucodec' package is required for ONNX decoder. \n"
-                    "Please install it via: pip install neucodec"
-                ) from e
+            except Exception as e:
+                logger.warning(f"Failed to load standalone ONNX decoder: {e}. Trying via neucodec package...")
+                try:
+                    from neucodec import NeuCodecOnnxDecoder
+                    self.codec = NeuCodecOnnxDecoder.from_pretrained(codec_repo)
+                    self._is_onnx_codec = True
+                    return
+                except ImportError:
+                    raise ImportError(
+                        "The 'onnxruntime' package is required for ONNX decoder. \n"
+                        "Please install it via: pip install onnxruntime"
+                    ) from e
 
         # For PyTorch codecs, check for torch first
         try:

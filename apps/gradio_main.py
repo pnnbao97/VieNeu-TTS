@@ -74,6 +74,11 @@ filtered_codecs = {
         "description": "Codec mặc định cho model GPU",
         "use_preencoded": False
     },
+    "NeuCodec (ONNX)": {
+        "repo": "neuphonic/neucodec-onnx-decoder-int8",
+        "description": "Codec siêu nhẹ, tối ưu cho CPU (ONNX)",
+        "use_preencoded": False
+    },
     "VieNeu-Codec": {
         "repo": "pnnbao-ump/VieNeu-Codec",
         "description": "Codec tối ưu cho Turbo v2 (ONNX)",
@@ -1221,6 +1226,10 @@ with gr.Blocks(theme=theme, css=css, title="VieNeu-TTS", head=head_html) as demo
                     default_codec = "VieNeu-Codec"
                     default_temp = 0.4
                     default_text = DEFAULT_TEXT_TURBO
+                elif "(CPU)" in default_backbone:
+                    default_codec = "NeuCodec (ONNX)"
+                    default_temp = 0.7
+                    default_text = DEFAULT_TEXT_GPU
                 else:
                     default_codec = "NeuCodec (Distill)" if "NeuCodec (Distill)" in CODEC_CONFIGS else list(CODEC_CONFIGS.keys())[0]
                     default_temp = 0.7
@@ -1458,6 +1467,10 @@ with gr.Blocks(theme=theme, css=css, title="VieNeu-TTS", head=head_html) as demo
                 codec_update = gr.update(value="VieNeu-Codec", interactive=False)
                 text_update = gr.update(value=DEFAULT_TEXT_TURBO)
                 temp_update = gr.update(value=0.4)
+            elif "(CPU)" in choice:
+                codec_update = gr.update(value="NeuCodec (ONNX)", interactive=False)
+                text_update = gr.update(value=DEFAULT_TEXT_GPU)
+                temp_update = gr.update(value=0.7)
             else:
                 codec_update = gr.update(value="NeuCodec (Distill)", interactive=False)
                 text_update = gr.update(value=DEFAULT_TEXT_GPU)

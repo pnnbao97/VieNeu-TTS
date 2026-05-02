@@ -77,7 +77,7 @@ curl -LsSf https://astral.sh/uv/install.sh | sh
 
 ## 📦 2. Using the Python SDK (vieneu) <a name="sdk"></a>
 
-The `vieneu` SDK defaults to **Turbo mode** when used locally to prioritize extreme speed and real-time performance. To achieve maximum audio quality (Standard VieNeu-TTS), you should set up a [Remote Server](#docker-remote) and use the SDK in **remote mode**.
+The `vieneu` SDK defaults to **Standard mode** (0.3B GGUF + ONNX) when used locally, providing a perfect balance of high audio quality and real-time performance on any CPU or GPU.
 
 ### Quick Start
 ```bash
@@ -94,11 +94,12 @@ pip install vieneu --extra-index-url https://abetlen.github.io/llama-cpp-python/
 ```python
 from vieneu import Vieneu
 
-# Initialize in Turbo mode (Default - Minimal dependencies)
+# Initialize in Standard mode (Default - Optimized 0.3B GGUF + ONNX)
+# Works out-of-the-box on CPU without requiring PyTorch!
 tts = Vieneu()
 
 # 1. Simple synthesis (uses default Southern Male voice 'Xuân Vĩnh')
-text = "Hệ thống điện chủ yếu sử dụng alternating current because it is more efficient."
+text = "Chào bạn. Tôi là VieNeu-TTS, tôi có thể giúp bạn đọc sách, làm chatbot thời gian thực, thậm chí clone giọng nói của bạn."
 audio = tts.infer(text=text)
 
 # Save to file
@@ -120,24 +121,41 @@ tts.save(audio_custom, "output_Phạm Tuyên.wav")
 print("💾 Saved to output_Phạm Tuyên.wav")
 ```
 
-### 🦜 Zero-shot Voice Cloning (SDK) <a name="cloning"></a>
-
-Clone any voice with only **3-5 seconds** of audio using the local Turbo engine:
+### 🚀 Turbo Mode (Bilingual & Extreme Speed)
+Use `mode="turbo"` for the fastest possible inference, especially optimized for real-time English-Vietnamese code-switching.
 
 ```python
 from vieneu import Vieneu
 
-tts = Vieneu() # Defaults to Turbo mode
+# Initialize in Turbo mode (v2-Turbo GGUF)
+tts = Vieneu(mode="turbo")
 
-# 1. Encode the reference audio
-# Supported formats: .wav, .mp3, .flac (5-10 seconds recommended)
+# Turbo v2 supports natural English-Vietnamese transitions
+text = "Hệ thống điện chủ yếu sử dụng alternating current because it is more efficient."
+audio = tts.infer(text=text)
+
+tts.save(audio, "turbo_output.wav")
+```
+
+### 🦜 Zero-shot Voice Cloning (SDK) <a name="cloning"></a>
+Clone any voice with only **3-5 seconds** of audio. 
+
+> [!TIP]
+> **Turbo mode** is recommended for voice cloning as it doesn't require reference text, while **Standard mode** (default) requires providing the `ref_text` for higher accuracy.
+
+```python
+from vieneu import Vieneu
+
+# We'll use turbo mode for easy zero-shot cloning (no ref_text needed)
+tts = Vieneu(mode="turbo")
+
+# 1. Encode the reference audio (3-5 seconds recommended)
 my_voice = tts.encode_reference("examples/audio_ref/example.wav")
 
 # 2. Synthesize with the cloned voice
-# No reference text required for Turbo v2!
 audio = tts.infer(
     text="Đây là giọng nói được clone trực tiếp bằng SDK của VieNeu-TTS.", 
-    voice=my_voice  # accepts numpy array from encode_reference() or preset dict from get_preset_voice()
+    voice=my_voice
 )
 
 tts.save(audio, "cloned_voice.wav")

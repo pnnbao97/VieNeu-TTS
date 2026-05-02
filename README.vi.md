@@ -56,7 +56,7 @@
 
 ## 📦 2. Sử dụng Python SDK (vieneu) <a name="sdk"></a>
 
-SDK `vieneu` hiện mặc định sử dụng **chế độ Turbo** để đảm bảo tính tương thích cao nhất.
+SDK `vieneu` hiện mặc định sử dụng **chế độ Standard** (0.3B GGUF + ONNX) khi dùng cục bộ, mang lại sự cân bằng hoàn hảo giữa chất lượng âm thanh cao và tốc độ xử lý thời gian thực trên cả CPU và GPU.
 
 ### Bắt đầu nhanh
 ```bash
@@ -71,7 +71,8 @@ pip install vieneu --extra-index-url https://pnnbao97.github.io/llama-cpp-python
 ```python
 from vieneu import Vieneu
 
-# Khởi tạo chế độ Turbo (Mặc định - Phụ thuộc tối giản)
+# Khởi tạo chế độ Standard (Mặc định - Tối ưu 0.3B GGUF + ONNX)
+# Chạy ngay lập tức trên CPU mà không cần cài đặt PyTorch!
 tts = Vieneu()
 
 # 1. Tổng hợp đơn giản (sử dụng giọng mặc định 'Xuân Vĩnh')
@@ -95,21 +96,38 @@ tts.save(audio_custom, "output_Phạm Tuyên.wav")
 print("💾 Đã lưu file output_Phạm Tuyên.wav")
 ```
 
-### 🦜 3. Zero-shot Voice Cloning (SDK) <a name="cloning"></a>
-
-Clone giọng bất kỳ chỉ với **3-5 giây** âm thanh mẫu bằng engine Turbo:
+### 🚀 Chế độ Turbo (Song ngữ & Tốc độ cực nhanh)
+Sử dụng `mode="turbo"` để đạt tốc độ xử lý nhanh nhất, đặc biệt tối ưu cho việc đọc song ngữ Anh-Việt (code-switching) trong thời gian thực.
 
 ```python
 from vieneu import Vieneu
 
-tts = Vieneu() # Mặc định chế độ Turbo
+# Khởi tạo chế độ Turbo (v2-Turbo GGUF)
+tts = Vieneu(mode="turbo")
 
-# 1. Trích xuất đặc trưng giọng nói (Encoder)
-# Hỗ trợ: .wav, .mp3, .flac
+# Turbo v2 hỗ trợ chuyển đổi Anh-Việt cực kỳ tự nhiên
+text = "Hệ thống điện chủ sử dụng alternating current because it is more efficient."
+audio = tts.infer(text=text)
+
+tts.save(audio, "turbo_output.wav")
+```
+
+### 🦜 Clone giọng nói Zero-shot (SDK) <a name="cloning"></a>
+Clone bất kỳ giọng nói nào chỉ với **3-5 giây** âm thanh mẫu.
+
+> [!TIP]
+> **Chế độ Turbo** được khuyến nghị cho việc clone giọng vì không yêu cầu văn bản mẫu (`ref_text`), trong khi **chế độ Standard** (mặc định) yêu cầu cung cấp `ref_text` để đạt độ chính xác cao hơn.
+
+```python
+from vieneu import Vieneu
+
+# Sử dụng turbo mode để clone giọng dễ dàng (không cần ref_text)
+tts = Vieneu(mode="turbo")
+
+# 1. Trích xuất đặc trưng giọng nói (3-5 giây khuyến nghị)
 my_voice = tts.encode_reference("examples/audio_ref/example.wav")
 
 # 2. Tổng hợp với giọng đã clone
-# KHÔNG cần văn bản mẫu cho bản v2-Turbo!
 audio = tts.infer(
     text="Đây là giọng nói được clone trực tiếp bằng SDK của VieNeu-TTS.", 
     voice=my_voice

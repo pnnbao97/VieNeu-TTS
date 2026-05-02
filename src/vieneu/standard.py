@@ -3,7 +3,6 @@ import platform
 from pathlib import Path
 from typing import Optional, Union, List, Generator, Any, Dict
 import numpy as np
-import torch
 import gc
 import logging
 from .base import BaseVieneuTTS
@@ -21,12 +20,12 @@ class VieNeuTTS(BaseVieneuTTS):
 
     def __init__(
         self,
-        backbone_repo: str = "pnnbao-ump/VieNeu-TTS-0.3B-q4-gguf",
+        backbone_repo: str = "pnnbao-ump/VieNeu-TTS-0.3B",
         backbone_device: str = "cpu",
-        codec_repo: str = "neuphonic/distill-neucodec",
+        codec_repo: str = "neuphonic/neucodec-onnx-decoder-int8",
         codec_device: str = "cpu",
         hf_token: Optional[str] = None,
-        gguf_filename: Optional[str] = None,
+        gguf_filename: Optional[str] = "VieNeu-TTS-0.3B-Q4_K_M.gguf",
     ):
         super().__init__()
 
@@ -58,7 +57,8 @@ class VieNeuTTS(BaseVieneuTTS):
             logger.info("🔥 Warming up standard model...")
             dummy_text = "Xin chào"
             # Using very short dummy ref to speed up
-            dummy_ref_codes = torch.zeros(10, dtype=torch.long)
+            import numpy as _np
+            dummy_ref_codes = _np.zeros(10, dtype=_np.int64)
             dummy_ref_text = "Chào"
             _ = self.infer(dummy_text, ref_codes=dummy_ref_codes, ref_text=dummy_ref_text, max_chars=16)
             logger.info("   ✅ Warmup complete")
@@ -79,8 +79,12 @@ class VieNeuTTS(BaseVieneuTTS):
                 self.codec = None
 
             gc.collect()
-            if torch.cuda.is_available():
-                torch.cuda.empty_cache()
+            try:
+                import torch as _torch
+                if _torch.cuda.is_available():
+                    _torch.cuda.empty_cache()
+            except ImportError:
+                pass
         except Exception as e:
             logger.error(f"Error during VieNeuTTS closure: {e}")
 
@@ -116,6 +120,7 @@ class VieNeuTTS(BaseVieneuTTS):
             if self.tokenizer.pad_token is None:
                 self.tokenizer.pad_token = self.tokenizer.eos_token
 
+            import torch
             self.backbone = AutoModelForCausalLM.from_pretrained(backbone_repo, token=hf_token).to(
                 torch.device(backbone_device)
             )
@@ -169,15 +174,19 @@ class VieNeuTTS(BaseVieneuTTS):
             self._lora_loaded = False
             self._current_lora_repo = None
             gc.collect()
-            if torch.cuda.is_available():
-                torch.cuda.empty_cache()
+            try:
+                import torch as _torch
+                if _torch.cuda.is_available():
+                    _torch.cuda.empty_cache()
+            except ImportError:
+                pass
             logger.info("   ✅ LoRA adapter unloaded, original weights restored")
             return True
         except Exception as e:
             logger.error(f"   ⚠️ Error during unload: {e}")
             return False
 
-    def infer(self, text: str, ref_audio: Optional[Union[str, Path]] = None, ref_codes: Optional[Union[np.ndarray, torch.Tensor]] = None, ref_text: Optional[str] = None, max_chars: int = 256, silence_p: float = 0.15, crossfade_p: float = 0.0, voice: Optional[Dict[str, Any]] = None, temperature: float = 1.0, top_k: int = 50, skip_normalize: bool = False, apply_watermark: bool = True) -> np.ndarray:
+    def infer(self, text: str, ref_audio: Optional[Union[str, Path]] = None, ref_codes=None, ref_text: Optional[str] = None, max_chars: int = 256, silence_p: float = 0.15, crossfade_p: float = 0.0, voice: Optional[Dict[str, Any]] = None, temperature: float = 1.0, top_k: int = 50, skip_normalize: bool = False, apply_watermark: bool = True) -> np.ndarray:
 
         ref_codes, ref_text = self._resolve_ref_voice(voice, ref_audio, ref_codes, ref_text)
 
@@ -215,7 +224,7 @@ class VieNeuTTS(BaseVieneuTTS):
             final_wav = self._apply_watermark(final_wav)
         return final_wav
 
-    def infer_batch(self, texts: List[str], ref_audio: Optional[Union[str, Path]] = None, ref_codes: Optional[Union[np.ndarray, torch.Tensor]] = None, ref_text: Optional[str] = None, voice: Optional[Dict[str, Any]] = None, temperature: float = 1.0, top_k: int = 50, skip_normalize: bool = False, apply_watermark: bool = True) -> List[np.ndarray]:
+    def infer_batch(self, texts: List[str], ref_audio: Optional[Union[str, Path]] = None, ref_codes=None, ref_text: Optional[str] = None, voice: Optional[Dict[str, Any]] = None, temperature: float = 1.0, top_k: int = 50, skip_normalize: bool = False, apply_watermark: bool = True) -> List[np.ndarray]:
         ref_codes, ref_text = self._resolve_ref_voice(voice, ref_audio, ref_codes, ref_text)
 
         if not skip_normalize:
@@ -235,6 +244,7 @@ class VieNeuTTS(BaseVieneuTTS):
                 all_wavs.append(wav)
         # If model is Torch, we can leverage true batch generation
         else:
+            import torch
             batch_prompt_ids = []
             for phonemes in chunk_phonemes:
                 prompt_ids = self._apply_chat_template(ref_codes, ref_phonemes, phonemes)
@@ -272,7 +282,7 @@ class VieNeuTTS(BaseVieneuTTS):
 
         return all_wavs
 
-    def infer_stream(self, text: str, ref_audio: Optional[Union[str, Path]] = None, ref_codes: Optional[Union[np.ndarray, torch.Tensor]] = None, ref_text: Optional[str] = None, max_chars: int = 256, voice: Optional[Dict[str, Any]] = None, temperature: float = 1.0, top_k: int = 50, skip_normalize: bool = False) -> Generator[np.ndarray, None, None]:
+    def infer_stream(self, text: str, ref_audio: Optional[Union[str, Path]] = None, ref_codes=None, ref_text: Optional[str] = None, max_chars: int = 256, voice: Optional[Dict[str, Any]] = None, temperature: float = 1.0, top_k: int = 50, skip_normalize: bool = False) -> Generator[np.ndarray, None, None]:
 
         ref_codes, ref_text = self._resolve_ref_voice(voice, ref_audio, ref_codes, ref_text)
 
@@ -326,6 +336,7 @@ class VieNeuTTS(BaseVieneuTTS):
         return ids
 
     def _infer_torch(self, prompt_ids: List[int], temperature: float = 1.0, top_k: int = 50) -> str:
+        import torch
         prompt_tensor = torch.tensor(prompt_ids).unsqueeze(0).to(self.backbone.device)
         speech_end_id = self.tokenizer.convert_tokens_to_ids("<|SPEECH_GENERATION_END|>")
         with torch.no_grad():

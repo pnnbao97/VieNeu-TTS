@@ -1,6 +1,6 @@
 
 
-def Vieneu(mode="turbo", **kwargs):
+def Vieneu(mode="standard", **kwargs):
     """
     Factory function for VieNeu-TTS.
 
