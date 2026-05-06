@@ -749,6 +749,26 @@ def load_model(backbone_choice: str, codec_choice: str, device_choice: str,
             )
 
 
+def resolve_voice_id(v_id: str) -> str:
+    """Robustly resolve voice ID, handling both display labels and internal IDs."""
+    if not v_id:
+        return v_id
+    
+    global PRESET_VOICES_CACHE
+    if not PRESET_VOICES_CACHE:
+        return v_id
+        
+    for item in PRESET_VOICES_CACHE:
+        if isinstance(item, (list, tuple)) and len(item) >= 2:
+            label, value = item[0], item[1]
+            if v_id == value or v_id == label:
+                return value
+        else:
+            if v_id == item:
+                return item
+            
+    return v_id
+
 # --- 2. DATA & HELPERS ---
 
 def synthesize_speech(text: str, voice_choice: str, custom_audio, custom_text: str, 
@@ -787,7 +807,8 @@ def synthesize_speech(text: str, voice_choice: str, custom_audio, custom_text: s
                 raise ValueError("Không có giọng mẫu khả dụng. Vui lòng chuyển sang Tab Voice Cloning.")
             
             # Use SDK method - handles caching and JSON internally
-            voice_data = tts.get_preset_voice(voice_choice)
+            v_id = resolve_voice_id(voice_choice)
+            voice_data = tts.get_preset_voice(v_id)
             ref_codes = voice_data['codes']
             ref_text_raw = voice_data['text']
         
@@ -1172,9 +1193,10 @@ def synthesize_conversation(
         name = str(name).strip() if name else ""
         if not name: continue
         # Use lowercase key for robust matching
+        v_id = resolve_voice_id(str(voice)) if voice else ""
         mapping[name.lower()] = {
             'type': 'Preset',
-            'voice': str(voice) if voice else "",
+            'voice': v_id,
             'ref_text': ''
         }
 
