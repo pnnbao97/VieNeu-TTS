@@ -245,7 +245,7 @@ class VieNeuTTS(BaseVieneuTTS):
         # If model is GGUF, we still process sequentially for now as llama-cpp-python batching for TTS is complex
         if self._is_quantized_model:
             for phonemes in chunk_phonemes:
-                output_str = self._infer_ggml(ref_codes, ref_phonemes, phonemes, temperature, top_k)
+                output_str = self._infer_ggml(ref_codes, ref_phonemes, phonemes, temperature, top_k, emotion_tag=kwargs.get('emotion_tag', self.default_emotion))
                 wav = self._decode(output_str)
                 if apply_watermark:
                     wav = self._apply_watermark(wav)
