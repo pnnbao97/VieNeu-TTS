@@ -15,6 +15,10 @@ import numpy as np
 from .base import BaseVieneuTTS
 from vieneu_utils.phonemize_text import phonemize_text_with_emotions
 from vieneu_utils.core_utils import split_text_into_chunks, join_audio_chunks
+try:
+    from .vietnamese_processor.pipeline import process_vietnamese_text
+except ImportError:
+    process_vietnamese_text = None
 
 logger = logging.getLogger("Vieneu.V3Turbo")
 
@@ -186,6 +190,13 @@ class V3TurboVieNeuTTS(BaseVieneuTTS):
     ) -> np.ndarray:
         ref_codes, voice_token_id = self._resolve_v3_ref(voice, ref_audio, ref_codes)
 
+        # Normalize text via vietnamese_processor
+        if process_vietnamese_text is not None:
+            try:
+                text = process_vietnamese_text(text)
+            except Exception as e:
+                logger.warning(f"Failed to normalize text via vietnamese_processor: {e}")
+
         # Chunking kiểu v1/v2 (standard): cắt TEXT theo max_chars, ghép có silence/crossfade.
         chunks = split_text_into_chunks(text, max_chars=max_chars)
         if not chunks:
@@ -222,6 +233,14 @@ class V3TurboVieNeuTTS(BaseVieneuTTS):
         **kwargs: Any,
     ) -> Generator[np.ndarray, None, None]:
         ref_codes, voice_token_id = self._resolve_v3_ref(voice, ref_audio, ref_codes)
+
+        # Normalize text via vietnamese_processor
+        if process_vietnamese_text is not None:
+            try:
+                text = process_vietnamese_text(text)
+            except Exception as e:
+                logger.warning(f"Failed to normalize text via vietnamese_processor: {e}")
+
         chunks = split_text_into_chunks(text, max_chars=max_chars)
         for chunk in chunks:
             phonemes = phonemize_text_with_emotions(chunk)

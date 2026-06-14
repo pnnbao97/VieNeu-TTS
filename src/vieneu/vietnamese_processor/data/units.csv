@@ -1,0 +1,62 @@
+unit,spoken
+m,mét
+cm,xăng-ti-mét
+mm,mi-li-mét
+km,ki-lô-mét
+dm,đề-xi-mét
+inch,in
+kg,ki-lô-gam
+g,gam
+mg,mi-li-gam
+tấn,tấn
+ml,mi-li-lít
+l,lít
+lít,lít
+m²,mét vuông
+m2,mét vuông
+km²,ki-lô-mét vuông
+km2,ki-lô-mét vuông
+ha,héc-ta
+cm²,xăng-ti-mét vuông
+cm2,xăng-ti-mét vuông
+m³,mét khối
+m3,mét khối
+cm³,xăng-ti-mét khối
+cm3,xăng-ti-mét khối
+km/h,ki-lô-mét trên giờ
+m/s,mét trên giây
+°C,độ C
+°F,độ F
+kW,ki-lô-oát
+MW,mê-ga-oát
+W,oát
+kWh,ki-lô-oát giờ
+MWh,mê-ga-oát giờ
+V,vôn
+kV,ki-lô-vôn
+mA,mi-li-am-pe
+kA,ki-lô-am-pe
+Hz,héc
+kHz,ki-lô-héc
+MHz,mê-ga-héc
+GHz,gi-ga-héc
+dB,đề-xi-ben
+cal,ca-lo
+kcal,ki-lô ca-lo
+Mbps,mê-ga-bít trên giây
+Gbps,gi-ga-bít trên giây
+MB,mê-ga-bai
+GB,gi-ga-bai
+TB,tê-ra-bai
+KB,ki-lô-bai
+mmHg,mi-li-mét thủy ngân
+cmH2O,xăng-ti-mét nước
+l/phút,lít trên phút
+l/p,lít trên phút
+mg/dL,mi-li-gam trên đê-xi-lít
+mmol/L,mi-li-mol trên lít
+µg/L,mi-crô-gam trên lít
+ng/mL,na-nô-gam trên mi-li-lít
+IU/L,đơn vị quốc tế trên lít
+bản/phút,bản trên phút
+lần/phút,lần trên phút
