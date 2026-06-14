@@ -64,7 +64,11 @@ def _build_alternation(keys, *, ignore_case: bool = True) -> re.Pattern | None:
 
 
 _ACRONYM_RE = _build_alternation(ACRONYMS.keys())
-_NON_VI_RE = _build_alternation(NON_VIETNAMESE_WORDS.keys())
+NON_VIETNAMESE_WORDS_FILTERED = {
+    k: v for k, v in NON_VIETNAMESE_WORDS.items() if k.lower() != v.lower()
+}
+_NON_VI_RE = _build_alternation(NON_VIETNAMESE_WORDS_FILTERED.keys())
+_WORD_RE = re.compile(r"\b\w+\b")
 
 # Unit alternations are reused by ranges, percentage, and standalone passes.
 _UNITS_SORTED = sorted(UNIT_MAP.keys(), key=len, reverse=True)
@@ -182,8 +186,12 @@ def replace_non_vietnamese(text: str) -> str:
     """
     if _NON_VI_RE is None:
         return text
+    # Pre-scan words to skip regex alternation match if no candidates are present
+    words = _WORD_RE.findall(text)
+    if not any(w.lower() in NON_VIETNAMESE_WORDS_FILTERED for w in words):
+        return text
     return _NON_VI_RE.sub(
-        lambda m: NON_VIETNAMESE_WORDS.get(m.group(1).lower(), m.group(1)),
+        lambda m: NON_VIETNAMESE_WORDS_FILTERED.get(m.group(1).lower(), m.group(1)),
         text,
     )
 

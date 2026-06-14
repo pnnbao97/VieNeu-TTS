@@ -18,6 +18,9 @@ Stage = Callable[[str], str]
 logger = logging.getLogger(__name__)
 
 _TRAILING_WS_RE = re.compile(r"\s+")
+_DIGIT_RE = re.compile(r"\d")
+_SYMBOL_RE = re.compile(r"[±×÷^+=@#%]")
+_ROMAN_RE = re.compile(r"\b[IVXLCDM]+\b")
 
 
 @dataclass(frozen=True)
@@ -92,8 +95,36 @@ class Pipeline:
         if not text or not text.strip():
             return text
         original = text
+
+        has_roman = bool(_ROMAN_RE.search(text))
+        has_digits = bool(_DIGIT_RE.search(text)) or has_roman
+        has_symbols = bool(_SYMBOL_RE.search(text))
+
         for step in self.stages:
+            name = step.name
+
+            # Skip numeric stages if no digits present
+            if not has_digits and name in (
+                "thousand_sep", "vn_currency_abbrev", "ranges_with_units",
+                "negative", "dot_decimal", "quarter", "percentage",
+                "currency", "date", "year_range", "time", "phone",
+                "measurement_units", "multiplier", "ratio", "medical_ratio",
+                "alphanum_codes", "decimal", "ordinal", "standalone_numbers"
+            ):
+                continue
+
+            # Skip symbol stages if no symbols present
+            if not has_symbols and name in (
+                "plusminus", "symbols", "pct_after_word", "percentage"
+            ):
+                continue
+
+            # Skip Roman numeral conversion if no Roman letters present
+            if not has_roman and name == "roman":
+                continue
+
             text = step.fn(text)
+
         text = _TRAILING_WS_RE.sub(" ", text).strip()
         if text != original and logger.isEnabledFor(logging.DEBUG):
             logger.debug('[VN] "%s" → "%s"', original, text)
