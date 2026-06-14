@@ -144,7 +144,7 @@ where = ["src", "."]
 include = ["vieneu*", "vieneu_utils*", "apps*", "examples*"]
 
 [tool.setuptools.package-data]
-vieneu = ["assets/*.json", "assets/samples/*"]
+vieneu = ["assets/*.json", "assets/samples/*", "vietnamese_processor/data/*.csv", "vietnamese_processor/data/*.txt"]
 
 [tool.uv.sources]
 

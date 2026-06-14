@@ -1,0 +1,171 @@
+acronym,transliteration
+bn,bệnh nhân
+bv,bệnh viện
+bs,bác sĩ
+ys,y sĩ
+ha,huyết áp
+nt,nhịp tim
+ho,hô hấp
+ts,tiền sử
+cls,cận lâm sàng
+lstn,lâm sàng
+tcd,tiền căn
+ecg,i si gi
+ekg,i kê gi
+mri,em a ai
+ct,si ti
+icu,ai si u
+er,i a
+hiv,hắt ai vi
+aids,ết
+covid,cô-vít
+iv,tĩnh mạch
+im,tiêm bắp
+po,uống
+cpu,si pi u
+gpu,gi pi u
+ram,ram
+rom,rom
+ssd,ét ét đi
+hdd,hắt đi đi
+usb,u ét bi
+wifi,oai-phai
+lan,lan
+wan,oăn
+vpn,vi pi en
+os,ô ét
+ml,em e lờ
+api,ây pi ai
+http,hắt ti ti pi
+https,hắt ti ti pi ét
+url,u a en
+sql,ét quy en
+html,hắt ti em en
+css,si ét ét
+json,jay-sần
+xml,ích em en
+pdf,pi đi ép
+doc,đốc
+docx,đốc-x
+jpg,jay-pi-gi
+png,pi en gi
+mp3,em pi ba
+mp4,em pi bốn
+ddr5,đi đi a năm
+ddr4,đi đi a bốn
+nvme,en vi em e
+ceo,si i ô
+cto,si ti ô
+coo,si ô ô
+cfo,si ép ô
+cmo,si em ô
+cio,si ai ô
+gm,gi em
+pm,pi em
+hr,hắt a
+pr,pi a
+qa,kiu ây
+qc,kiu si
+gdp,gi đi pi
+cpi,si pi ai
+ppi,pi pi ai
+roi,rô ai
+kpi,kê pi ai
+okr,ô kê a
+b2b,bi tu bi
+b2c,bi tu si
+saas,sát
+yoy,năm trên năm
+mom,tháng trên tháng
+qoq,quý trên quý
+fdi,ép đi ai
+fmcg,ép em si gi
+ttcp,thủ tướng chính phủ
+qh,quốc hội
+cp,chính phủ
+bgdđt,bộ giáo dục và đào tạo
+byt,bộ y tế
+btc,bộ tài chính
+bxd,bộ xây dựng
+bca,bộ công an
+bqp,bộ quốc phòng
+sgd,sở giáo dục
+syt,sở y tế
+ttcs,tiểu thuyết cổ sử
+thcs,trung học cơ sở
+thpt,trung học phổ thông
+cđ,cao đẳng
+đh,đại học
+cnh,công nghiệp hóa
+hđh,hiện đại hóa
+ctv,cộng tác viên
+tnv,tình nguyện viên
+cb-cnv,cán bộ công nhân viên
+cmnd,chứng minh nhân dân
+cccd,căn cước công dân
+ipo,ai pi ô
+eps,i pi ét
+ebitda,ê-bit-đa
+npl,en pi e lờ
+roa,rô ô ây
+roe,rô ô i
+ltv,el ti vi
+cac,si ây si
+mrr,em a a
+arr,ây a a
+ma,em ê
+m&a,em an ê
+pe,pi i
+pb,pi bi
+vnd,vi en đi
+usd,u ét đi
+eur,i u a
+jpy,jay pi y
+sbv,ét bi vi
+ssc,ét ét si
+hose,hồ-xê
+hnx,hát en ích
+upcom,up-com
+bmi,bi em ai
+bun,bi u en
+wbc,dáp-bi-lờ si bi
+rbc,a bi si
+hct,hát si ti
+hgb,hát gi bi
+egfr,i gi ép a
+gfr,gi ép a
+crp,si a pi
+ldl,el đi el
+hdl,hát đi el
+tg,ti gi
+spo2,ét pi ô hai
+fio2,ép ai ô hai
+tsh,ti ét hát
+ft4,ép ti bốn
+ft3,ép ti ba
+pcr,pi si a
+rt-pcr,a ti pi si a
+llm,el el em
+rag,rác
+lora,lô-ra
+genai,jen ê ai
+sdk,ét đi kê
+ide,ai đi i
+cli,si el ai
+gui,gi u ai
+rest,rét
+grpc,gi a pi si
+soap,xà-phòng
+tcp,ti si pi
+udp,u đi pi
+ip,ai pi
+dns,đi en ét
+cdn,si đi en
+tls,ti el ét
+ssl,ét ét el
+oauth,ô-át
+jwt,jay đáp-bi-lờ ti
+k8s,kê-bê-tờ
+aws,ây đáp-bi-lờ ét
+gcp,gi si pi
+rtx,a ti ích
