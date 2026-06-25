@@ -131,7 +131,7 @@ class FastVieNeuTTS(BaseVieneuTTS):
         self.gen_config.temperature = temperature
         self.gen_config.top_k = top_k
 
-        # Split TRƯỚC rồi normalize (punc_norm=True) từng chunk độc lập.
+        # Normalize TRƯỚC rồi mới chia chunk theo độ dài đã chuẩn hóa (tránh phình).
         chunks = normalize_to_chunks(text, max_chars=max_chars, skip_normalize=skip_normalize)
         if not chunks:
             return np.array([], dtype=np.float32)
@@ -191,7 +191,7 @@ class FastVieNeuTTS(BaseVieneuTTS):
         self.gen_config.temperature = temperature
         self.gen_config.top_k = top_k
 
-        # Split TRƯỚC rồi normalize (punc_norm=True) từng chunk độc lập.
+        # Normalize TRƯỚC rồi mới chia chunk theo độ dài đã chuẩn hóa (tránh phình).
         chunks = normalize_to_chunks(text, max_chars=max_chars, skip_normalize=skip_normalize)
         for chunk in chunks:
             yield from self._infer_stream_single(chunk, ref_codes, ref_text, emotion_tag=kwargs.get('emotion_tag'))

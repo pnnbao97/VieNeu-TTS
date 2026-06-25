@@ -10,6 +10,16 @@ import numpy as np
 RE_NEWLINE          = re.compile(r'[\r\n]+')  # dùng chung cho cả v1 và v2
 RE_SENTENCE_FINDALL = re.compile(r'[^.!?]+[.!?]*|[.!?]+')
 
+# Một "từ" để đóng gói chunk: coi NGUYÊN một thẻ <en>...</en> là một token không
+# thể tách (thẻ chứa khoảng trắng như "<en>u s d</en>" sẽ vỡ nếu .split() theo
+# space). Dùng khi chia text ĐÃ normalize (có chèn <en>) thành chunk.
+RE_TOKEN_KEEP_EN = re.compile(r'<en>.*?</en>|\S+', re.IGNORECASE | re.DOTALL)
+
+
+def _tokenize_keep_en(s: str) -> List[str]:
+    """Tách ``s`` thành token, giữ NGUYÊN mỗi cụm ``<en>...</en>``."""
+    return RE_TOKEN_KEEP_EN.findall(s)
+
 # v1 only
 RE_SENTENCE_END = re.compile(r'(?<=[\.\!\?\…])\s+')
 RE_MINOR_PUNCT  = re.compile(r'(?<=[\,\;\:\-\–\—])\s+')
@@ -106,7 +116,7 @@ def split_text_into_chunks(text: str, max_chars: int = 256) -> List[str]:
                             final_chunks.append(buffer)
                         buffer = part
                         if len(buffer) > max_chars:
-                            words, current = buffer.split(), ""
+                            words, current = _tokenize_keep_en(buffer), ""
                             for word in words:
                                 if current and len(current) + 1 + len(word) > max_chars:
                                     final_chunks.append(current)

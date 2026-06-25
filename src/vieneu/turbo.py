@@ -192,8 +192,7 @@ class TurboGPUVieNeuTTS(BaseTurboVieNeuTTS):
             # text đã là chuỗi phoneme — chỉ chia chunk ở tầng phoneme.
             chunks = split_into_chunks_v2(text, max_chunk_size=max_chars)
         else:
-            # Split raw TRƯỚC -> normalize+phonemize từng chunk (punc_norm=True)
-            # -> split lại ở tầng phoneme.
+            # Normalize TRƯỚC -> phonemize -> chia chunk ở tầng phoneme (sau norm).
             chunks = phonemize_to_chunks(text, max_chars=max_chars, skip_normalize=skip_normalize)
 
         if voice is None:
@@ -247,8 +246,7 @@ class TurboGPUVieNeuTTS(BaseTurboVieNeuTTS):
         return all_wavs
 
     def infer_stream(self, text: str, voice: Optional[Any] = None, ref_codes: Optional[Any] = None, temperature: float = 0.4, top_k: int = 50, max_chars: int = 256, **kwargs) -> Generator[np.ndarray, None, None]:
-        # Split raw TRƯỚC -> normalize+phonemize từng chunk (punc_norm=True)
-        # -> split lại ở tầng phoneme.
+        # Normalize TRƯỚC -> phonemize -> chia chunk ở tầng phoneme (sau norm).
         chunks = phonemize_to_chunks(text, max_chars=max_chars)
 
         if voice is None:

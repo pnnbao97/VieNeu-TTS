@@ -8,9 +8,13 @@ import functools
 import logging
 import re
 from typing import Optional
-from sea_g2p import SEAPipeline, G2P, Normalizer
+from sea_g2p import SEAPipeline, G2P, Normalizer, punc_norm
 
 logger = logging.getLogger("Vieneu.Phonemizer")
+
+# Tách đoạn theo newline — dùng để normalize theo từng đoạn (ranh giới tự nhiên)
+# trước khi chia chunk, giữ input cho regex backtracking ở mức an toàn.
+RE_NEWLINE_SPLIT = re.compile(r"[\r\n]+")
 
 # ---------------------------------------------------------------------------
 # Inline non-verbal cues (emotion tokens) — v3 Turbo emotion checkpoint
@@ -109,27 +113,10 @@ def phonemize_text(text: str) -> str:
     return _phonemize_cached(text)
 
 
-# Dấu kết thúc câu hợp lệ ở tầng phoneme.
-_TERMINAL_PUNCT = ".!?"
-# Dấu ngắt yếu ở cuối cần thay bằng "." (mirror punc_norm cho câu).
-_WEAK_TRAILING = ",;:… \t"
-
-
-def _ensure_terminal_punct(phones: str) -> str:
-    """Đảm bảo chuỗi phoneme của MỘT chunk kết thúc bằng một dấu câu hợp lệ.
-
-    Dùng cho đường emotion: các fragment được phonemize với punc_norm=False để
-    không chèn "." vào giữa câu, nên cần chốt dấu cuối ở mức cả chunk. Nếu chunk
-    kết thúc bằng emotion token (``...|>``) thì thành ``...|>.`` — khớp format
-    training ("<|emotion_k|>."). Dấu ngắt yếu cuối (",;:…") được thay bằng ".".
-    """
-    s = phones.rstrip()
-    if not s:
-        return s
-    if s[-1] in _TERMINAL_PUNCT:
-        return s
-    s = s.rstrip(_WEAK_TRAILING)
-    return (s + ".") if s else phones
+# Chốt dấu câu cuối cho MỘT chunk = đúng quy tắc punc_norm của sea-g2p (single
+# source of truth, không tự viết lại): câu < 5 từ ép về một ".", câu dài thêm
+# "." nếu chưa kết thúc bằng , . ! ?. Áp dụng đồng nhất cho chunk text & phoneme
+# (kể cả chunk kết thúc bằng emotion token "<|emotion_k|>" -> "<|emotion_k|>.").
 
 
 def phonemize_text_with_emotions(text: str) -> str:
@@ -163,7 +150,7 @@ def phonemize_text_with_emotions(text: str) -> str:
         else:
             out += " " + ph
     # Chốt dấu cuối ở mức cả chunk (fragment bên trong đã punc_norm=False).
-    return _ensure_terminal_punct(out)
+    return punc_norm(out)
 
 
 def phonemize_batch(
@@ -226,24 +213,58 @@ def normalize_to_chunks(
     max_chars: int = 256,
     skip_normalize: bool = False,
 ) -> list[str]:
-    """Split raw text into chunks FIRST, then normalize each chunk (punc_norm=True).
+    """Normalize FIRST, then split the NORMALIZED text into <= max_chars chunks.
 
-    Tách chunk TRƯỚC khi normalize để mỗi chunk là một đơn vị độc lập và — nhờ
-    punc_norm — luôn kết thúc bằng dấu câu hợp lệ (câu ngắn ép ".", câu dài thiếu
-    dấu thì thêm "."). Nếu normalize cả câu rồi mới cắt thì một chunk có thể kết
-    thúc lửng hoặc bằng dấu ",". Trả về list text đã chuẩn hóa.
+    Chia chunk SAU normalize. Normalizer mở rộng độ dài text (vd "100$" -> "một
+    trăm u s d", "21/02/2025" -> "ngày hai mươi mốt tháng hai năm ..."), nên nếu
+    cắt TRƯỚC khi norm thì chunk sẽ phình vượt ``max_chars`` sau khi chuẩn hóa.
+    Ở đây normalize trước rồi mới cắt theo độ dài ĐÃ chuẩn hóa nên mỗi chunk thực
+    sự <= ``max_chars``.
+
+    Để không truyền nguyên một input cỡ DOCX vào bộ regex backtracking của
+    normalizer, ta normalize theo từng ĐOẠN (tách theo newline) bằng
+    ``normalize_batch`` — ranh giới tự nhiên, không ảnh hưởng độ dài chunk cuối —
+    rồi mới gom lại và cắt. Mỗi chunk được chốt dấu câu cuối hợp lệ.
     """
     from vieneu_utils.core_utils import split_text_into_chunks
 
     if not text:
         return []
 
-    raw_chunks = split_text_into_chunks(text, max_chars=max_chars)
     if skip_normalize:
-        return raw_chunks
+        normalized = text
+    else:
+        normalizer = _get_normalizer()
+        paragraphs = [p for p in RE_NEWLINE_SPLIT.split(text) if p.strip()]
+        normalized = (
+            "\n".join(normalizer.normalize_batch(paragraphs, punc_norm=True))
+            if paragraphs
+            else ""
+        )
 
-    normalizer = _get_normalizer()
-    return [normalizer.normalize(chunk, punc_norm=True) for chunk in raw_chunks]
+    return [
+        punc_norm(c)
+        for c in split_text_into_chunks(normalized, max_chars=max_chars)
+    ]
+
+
+def chunk_phonemes(phonemes: str, max_chars: int = 256) -> list[str]:
+    """Chia chuỗi phoneme (đã normalize + G2P, giữ inline cues) thành các chunk
+    <= ``max_chars`` bằng CÁCH CHIA THƯỜNG (gộp câu tham lam, không vụn từng câu
+    như ``split_into_chunks_v2``). Mỗi chunk được chốt dấu câu kết thúc hợp lệ
+    (``.`` ``!`` ``?``) — kể cả khi một câu quá dài bị cắt theo cụm/từ.
+
+    Dùng cho các đường phoneme-level (v3 Turbo, inline emotion) để chunk vừa
+    không phình quá giới hạn vừa luôn kết thúc bằng dấu câu.
+    """
+    from vieneu_utils.core_utils import split_text_into_chunks
+
+    if not phonemes:
+        return []
+    return [
+        punc_norm(c)
+        for c in split_text_into_chunks(phonemes, max_chars=max_chars)
+    ]
 
 
 def phonemize_to_chunks(
@@ -257,32 +278,30 @@ def phonemize_to_chunks(
     """
     Convert long raw text into bounded phoneme chunks.
 
-    Some dependencies in the normalization/tokenization stack use Rust regex
-    engines with backtracking limits. Split before those stages so DOCX-sized
-    inputs are never passed to a single regex operation.
+    Thứ tự (chia chunk SAU normalize): normalize theo từng ĐOẠN (punc_norm=True)
+    -> phonemize -> split ở tầng PHONEME (``split_into_chunks_v2``). Vì chunk
+    được cắt sau khi đã normalize + phonemize nên độ dài chunk phản ánh đúng
+    chuỗi phoneme thật và luôn <= ``max_chars`` (không bị phình như khi cắt trước
+    norm). Mỗi chunk luôn có dấu câu kết thúc hợp lệ.
 
-    Thứ tự: split raw -> normalize từng chunk (punc_norm=True) -> phonemize
-    (punc_norm=True) -> split lại ở tầng phoneme. Mỗi chunk vì thế luôn có dấu
-    câu kết thúc hợp lệ.
+    Normalize theo đoạn (tách newline) giữ input cho bộ regex backtracking ở mức
+    an toàn với văn bản cỡ lớn. ``source_max_chars`` được giữ cho tương thích chữ
+    ký nhưng không còn dùng (việc cắt theo độ dài giờ làm ở tầng phoneme).
     """
-    from vieneu_utils.core_utils import split_text_into_chunks, split_into_chunks_v2
+    from vieneu_utils.core_utils import split_into_chunks_v2
 
     if not text:
         return []
 
-    source_limit = source_max_chars or max_chars
-    raw_chunks = split_text_into_chunks(text, max_chars=source_limit)
-    if not raw_chunks:
-        return []
-
     if skip_normalize:
-        normalized_chunks = raw_chunks
+        normalized_units = [text]
     else:
         normalizer = _get_normalizer()
-        normalized_chunks = [normalizer.normalize(chunk, punc_norm=True) for chunk in raw_chunks]
+        paragraphs = [p for p in RE_NEWLINE_SPLIT.split(text) if p.strip()] or [text]
+        normalized_units = normalizer.normalize_batch(paragraphs, punc_norm=True)
 
     phonemes = phonemize_batch(
-        normalized_chunks,
+        normalized_units,
         skip_normalize=True,
         phoneme_dict=phoneme_dict,
     )

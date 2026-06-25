@@ -33,7 +33,7 @@ explicit = true
 
 [project]
 name = "vieneu"
-version = "3.0.5"
+version = "3.0.6"
 description = "Advanced on-device Vietnamese TTS with instant voice cloning"
 readme = "README_PYPI.md"
 license = { file = "LICENSE" }
@@ -67,7 +67,7 @@ requires-python = ">=3.10"
 # via ONNX Runtime. GPU / older backends (torch, transformers, llama-cpp, lmdeploy,
 # librosa) live in the optional [gpu] extra.
 dependencies = [
-    "sea-g2p>=0.7.8",       # phonemizer (Rust, torch-free) — needs punc_norm (>=0.7.6)
+    "sea-g2p>=0.7.11",      # phonemizer (Rust, torch-free) — cần hàm punc_norm() (>=0.7.11)
     "onnxruntime>=1.20.0",  # runs the v3 transformers + MOSS codec
     "numpy",
     "soundfile",            # audio I/O
