@@ -96,18 +96,6 @@ pip install vieneu
 pip install "vieneu[gpu]"
 ```
 
-> ⚡ **Tăng tốc v3 Turbo bằng GPU NVIDIA (không cần torch).** Để chạy engine ONNX
-> mặc định trên GPU CUDA mà không phải cài PyTorch, hãy thay bản ONNX Runtime CPU
-> bằng bản GPU. Hai bản dùng chung namespace `onnxruntime` và xung đột nhau, nên
-> phải gỡ bản CPU trước:
-> ```bash
-> pip install vieneu
-> pip uninstall -y onnxruntime
-> pip install "onnxruntime-gpu>=1.20.0"
-> ```
-> Engine tự dò GPU lúc chạy (không có thì fallback CPU) — không cần sửa code.
-> Cần driver NVIDIA tương thích.
-
 ```python
 from vieneu import Vieneu
 

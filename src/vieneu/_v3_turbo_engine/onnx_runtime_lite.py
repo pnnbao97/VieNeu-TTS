@@ -109,11 +109,7 @@ class OnnxV3LiteEngine:
         so = ort.SessionOptions()
         if threads and threads > 0:
             so.intra_op_num_threads = threads
-        # Tự dò CUDA: nếu cài `onnxruntime-gpu` và có GPU thì chạy GPU,
-        # ngược lại fallback CPU. CPU-only install (onnxruntime) vẫn hoạt động.
-        avail = ort.get_available_providers()
-        prov = (["CUDAExecutionProvider", "CPUExecutionProvider"]
-                if "CUDAExecutionProvider" in avail else ["CPUExecutionProvider"])
+        prov = ["CPUExecutionProvider"]
         self.sess_pre = ort.InferenceSession(str(vd / "vieneu_prefill.onnx"), so, providers=prov)
         self.sess_dec = ort.InferenceSession(str(vd / "vieneu_decode_step.onnx"), so, providers=prov)
         self.sess_ac = ort.InferenceSession(str(vd / "vieneu_acoustic_cached.onnx"), so, providers=prov)
@@ -305,9 +301,6 @@ class OnnxV3LiteEngine:
         lens = np.array([wav.shape[-1]], dtype=np.int32)
         if self._sess_codec_enc is None:
             import onnxruntime as ort
-            avail = ort.get_available_providers()
-            prov = (["CUDAExecutionProvider", "CPUExecutionProvider"]
-                    if "CUDAExecutionProvider" in avail else ["CPUExecutionProvider"])
-            self._sess_codec_enc = ort.InferenceSession(self._codec_enc_path, providers=prov)
+            self._sess_codec_enc = ort.InferenceSession(self._codec_enc_path, providers=["CPUExecutionProvider"])
         out = self._sess_codec_enc.run(None, {"waveform": wav, "input_lengths": lens})
         return np.asarray(out[0][0], dtype=np.int64)               # (T, n_vq)
