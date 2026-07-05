@@ -103,12 +103,16 @@ from vieneu import Vieneu
 tts = Vieneu()
 
 # 1. Giọng dựng sẵn theo tên — không cần audio mẫu
+print("🔊 Đang sinh giọng nói...")
 audio = tts.infer("Xin chào, đây là VieNeu-TTS.", voice="Trúc Ly")
 tts.save(audio, "output.wav")
+print("✅ Đã lưu vào output.wav")
 
 # Liệt kê các giọng dựng sẵn
-for label, voice_id in tts.list_preset_voices():
-    print(label, voice_id)
+voices = tts.list_preset_voices()
+print(f"\n🎙️  Có {len(voices)} giọng dựng sẵn:")
+for label, voice_id in voices:
+    print(f"  - {label} ({voice_id})")
 ```
 
 ### Phong cách đọc

@@ -36,11 +36,16 @@ from vieneu import Vieneu
 tts = Vieneu()
 
 # 1. Built-in voice by name — no reference needed
+print("🔊 Generating speech...")
 audio = tts.infer("Xin chào, đây là VieNeu-TTS.", voice="Trúc Ly")
 tts.save(audio, "output.wav")
+print("✅ Saved to output.wav")
 
-for label, voice_id in tts.list_preset_voices():
-    print(label, voice_id)
+# List the built-in voices
+voices = tts.list_preset_voices()
+print(f"\n🎙️  {len(voices)} built-in voices available:")
+for label, voice_id in voices:
+    print(f"  - {label} ({voice_id})")
 
 # 2. Reading style: "tu_nhien" (natural) | "tin_tuc" (news) | "doc_truyen" (storytelling)
 audio = tts.infer("Bản tin sáng nay.", voice="Phạm Tuyên", style="tin_tuc")
