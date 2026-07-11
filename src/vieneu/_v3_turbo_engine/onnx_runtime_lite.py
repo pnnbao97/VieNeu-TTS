@@ -81,11 +81,6 @@ class OnnxV3LiteEngine:
         self.checkpoint_path = checkpoint_path
         repo = onnx_repo or checkpoint_path
 
-        # The graphs live in a subfolder, so the Hub's download counter (which keys on
-        # the repo-root config.json) wouldn't register the load — touch the root file
-        # once so a first download counts like a normal one. Cached loads won't
-        # re-count (etag HEAD, no GET). Best-effort, never fatal; skipped when the
-        # artifacts are served purely from a local dir.
         if not onnx_dir:
             try:
                 from huggingface_hub import hf_hub_download
