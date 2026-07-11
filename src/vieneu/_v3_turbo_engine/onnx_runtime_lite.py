@@ -69,7 +69,7 @@ class OnnxV3LiteEngine:
         onnx_repo: Optional[str] = None,
         codec_repo: str = _CODEC_REPO,
         onnx_dir: Optional[str] = None,
-        onnx_subfolder: str = "onnx_update",
+        onnx_subfolder: str = "onnx_int8",   # int8 backbone (mặc định); "onnx_update" = fp32
         codec_dir: Optional[str] = None,
         threads: int = 0,
         **_kw,

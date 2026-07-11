@@ -37,12 +37,18 @@ class V3TurboVieNeuTTS(BaseVieneuTTS):
         backend: str = "auto",   # "auto" → ONNX on CPU, PyTorch on GPU; "onnx"|"pytorch" to force
         onnx_repo: Optional[str] = None,
         onnx_dir: Optional[str] = None,
-        onnx_subfolder: str = "onnx_update",
+        precision: str = "int8",   # ONNX/CPU backbone: "int8" (mặc định, nhanh ~3x/frame, nhỏ 4x) | "fp32" (chất-lượng-tối-đa)
+        onnx_subfolder: Optional[str] = None,   # override thủ công subfolder; None → suy từ `precision`
         threads: int = 0,   # ONNX/CPU intra-op threads; 0 = mặc định engine (~nhân vật lý, cap 8). Đặt số cụ thể để tinh chỉnh.
         **kwargs: Any,
     ):
         super().__init__()
         self.sample_rate = 48_000
+
+        # `precision` chỉ áp cho đường ONNX/CPU (chọn subfolder graph int8 vs fp32).
+        # Đường PyTorch/GPU dùng torch fp32/bf16, không liên quan.
+        if onnx_subfolder is None:
+            onnx_subfolder = {"int8": "onnx_int8", "fp32": "onnx_update"}.get(str(precision).lower(), "onnx_int8")
 
         if device in (None, "auto"):
             try:

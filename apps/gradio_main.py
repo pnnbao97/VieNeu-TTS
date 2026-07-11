@@ -77,10 +77,19 @@ filtered_backbones = {}
 # VieNeu-TTS v3 Turbo (early access) — PyTorch, runs on both CPU and GPU.
 # NOTE: this hardcoded `filtered_backbones` dict OVERRIDES config.yaml's
 # backbone_configs (see the reassignment below), so the model list is edited here.
-filtered_backbones["VieNeu-TTS-v3-Turbo (Thử nghiệm)"] = {
+# int8 ĐẶT TRƯỚC → mặc định. Backbone nén int8: nhanh ~3x/frame trên CPU, nhỏ 4x,
+# chất giọng đã A/B nghe đạt. fp32 giữ lại cho ai cần chất lượng tối đa (chậm hơn CPU).
+filtered_backbones["VieNeu-TTS-v3-Turbo (int8)"] = {
     "repo": "pnnbao-ump/VieNeu-TTS-v3-Turbo",
+    "precision": "int8",
     "supports_streaming": False,
-    "description": "🆕 v3 Turbo (early access) — 48kHz. Giọng mặc định dùng speaker token (ổn định hơn); Voice Cloning clone từ audio mẫu. Hỗ trợ tag cảm xúc [cười]/[hắng giọng]/[thở dài] (thử nghiệm). Bản dùng thử trước; v3 đầy đủ sẽ ra mắt trong vài tuần tới."
+    "description": "🆕 v3 Turbo (int8) — 48kHz, TỐI ƯU CHO CPU: nhanh nhất (backbone nén int8, ~3x/frame, nhẹ 4x). Khuyến nghị cho máy CPU. Giọng mặc định dùng speaker token; Voice Cloning clone từ audio mẫu; tag cảm xúc [cười]/[hắng giọng]/[thở dài] (thử nghiệm)."
+}
+filtered_backbones["VieNeu-TTS-v3-Turbo"] = {
+    "repo": "pnnbao-ump/VieNeu-TTS-v3-Turbo",
+    "precision": "fp32",
+    "supports_streaming": False,
+    "description": "v3 Turbo (fp32) — chất lượng tối đa nhưng CHẬM hơn trên CPU. Chỉ nên chọn khi cần chất lượng cao nhất; máy CPU nên dùng bản (int8)."
 }
 
 # GPU-only extras. On GPU the default is VieNeu-TTS-v2 (GPU); v3 Turbo stays the
@@ -568,10 +577,15 @@ def load_model(backbone_choice: str, codec_choice: str, device_choice: str,
                 print("   🆕 Mode: v3 Turbo (CPU=ONNX / GPU=PyTorch)")
                 # Map the app's device string to what the v3 engine understands.
                 v3_device = "cpu" if str(backbone_device).lower() == "cpu" else "auto"
+                # precision: "int8" (mặc định, subfolder onnx_int8) | "fp32" (onnx_update).
+                # Chỉ ảnh hưởng đường CPU/ONNX; trên GPU dùng PyTorch nên bỏ qua.
+                v3_precision = backbone_config.get("precision", "int8")
+                print(f"   🎚️  Precision: {v3_precision}")
                 tts = Vieneu(
                     mode="v3turbo",
                     backbone_repo=backbone_config["repo"],
                     device=v3_device,
+                    precision=v3_precision,
                     hf_token=custom_hf_token,
                 )
             elif "v2-Turbo" in backbone_choice:
@@ -1768,10 +1782,9 @@ with gr.Blocks(theme=theme, css=css, title="VieNeu-TTS", head=head_html) as demo
                 # --- BACKBONE & CODEC DEFAULT LOGIC ---
                 # GPU users default to VieNeu-TTS-v3-Turbo (GPU); CPU-only users get v3 Turbo
                 # (the only CPU backbone). v3 (GPU) is registered solely when HAS_GPU.
-                if HAS_GPU and "VieNeu-TTS-v3-Turbo (Thử nghiệm)" in BACKBONE_CONFIGS:
-                    default_backbone = "VieNeu-TTS-v3-Turbo (Thử nghiệm)"
-                else:
-                    default_backbone = list(BACKBONE_CONFIGS.keys())[0]
+                # int8 là entry đầu tiên → mặc định trên cả CPU lẫn GPU (trên GPU dùng
+                # PyTorch nên int8/fp32 như nhau; trên CPU int8 nhanh nhất).
+                default_backbone = list(BACKBONE_CONFIGS.keys())[0]
                 
                 # Default parameters based on backbone
                 if "v3" in default_backbone.lower():
@@ -1797,8 +1810,8 @@ with gr.Blocks(theme=theme, css=css, title="VieNeu-TTS", head=head_html) as demo
                 default_batch_size = 32 if "v3" in default_backbone.lower() else 4
 
                 backbone_select = gr.Dropdown(
-                    list(BACKBONE_CONFIGS.keys()) + ["Custom Model"], 
-                    value=default_backbone, 
+                    list(BACKBONE_CONFIGS.keys()) + ["Custom Model"],
+                    value=default_backbone,
                     label="🦜 Backbone"
                 )
                 codec_select = gr.Dropdown(
@@ -1861,7 +1874,7 @@ with gr.Blocks(theme=theme, css=css, title="VieNeu-TTS", head=head_html) as demo
                     <div class="warning-banner-item" style="background: #dcfce7; border-color: #86efac;">
                         <strong style="color: #15803d;">🐢 Hệ máy CPU</strong>
                         <div class="warning-banner-content" style="color: #166534;">
-                            Mặc định là <b>VieNeu-TTS-v3-Turbo (CPU)</b> phiên bản ONNX - chất lượng sẽ không tốt bằng bản Pytorch chạy trên GPU - nhưng là đánh đổi để có tốc độ tổng hợp nhanh nhất có thể.
+                            Máy <b>CPU</b> nên dùng bản <b>VieNeu-TTS-v3-Turbo (int8)</b> để tốc độ tối đa. Chuyển sang <b>VieNeu-TTS-v3-Turbo</b> nếu cần chất lượng cao hơn (nhưng chậm hơn trên CPU).
                         </div>
                     </div>
                 </div>

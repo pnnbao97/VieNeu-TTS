@@ -33,7 +33,7 @@ explicit = true
 
 [project]
 name = "vieneu"
-version = "3.1.4"
+version = "3.2.0"
 description = "Advanced on-device Vietnamese TTS with instant voice cloning"
 readme = "README_PYPI.md"
 license = { file = "LICENSE" }
