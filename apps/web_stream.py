@@ -76,7 +76,7 @@ label{display:block;font-size:12.5px;font-weight:600;color:var(--muted);margin:0
 select,textarea{width:100%;background:var(--field);color:var(--ink);border:1px solid var(--line);
   border-radius:12px;padding:12px 13px;font:inherit;outline:none;transition:border-color .15s,box-shadow .15s}
 select:focus,textarea:focus{border-color:var(--accent);box-shadow:0 0 0 3px color-mix(in srgb,var(--accent) 22%, transparent)}
-textarea{resize:vertical;min-height:104px}
+textarea{resize:none;overflow-y:auto;min-height:104px;max-height:340px}
 .row{margin-bottom:18px}
 .count{float:right;font-size:11px;color:var(--muted);font-weight:500;text-transform:none;letter-spacing:0}
 .btn{width:100%;border:0;border-radius:13px;padding:14px;font:600 16px/1 system-ui;cursor:pointer;color:var(--accent-ink);
@@ -113,7 +113,8 @@ audio{width:100%;margin-top:16px;border-radius:12px}
 <script>
 const $=id=>document.getElementById(id);
 const txt=$('text'),cnt=$('cnt'),btn=$('btn'),spin=$('spin'),btxt=$('btxt'),dot=$('dot'),st=$('st'),ttfa=$('ttfa'),au=$('au');
-txt.addEventListener('input',()=>cnt.textContent=txt.value.length); cnt.textContent=txt.value.length;
+const grow=()=>{txt.style.height='auto';txt.style.height=Math.min(txt.scrollHeight,340)+'px';};
+txt.addEventListener('input',()=>{cnt.textContent=txt.value.length;grow();}); cnt.textContent=txt.value.length; grow();
 fetch('/voices').then(r=>r.json()).then(v=>{const s=$('voice');s.innerHTML='';
   v.forEach(x=>{const o=document.createElement('option');o.value=x.id;o.textContent=x.name;s.add(o);});})
   .catch(e=>{setStatus('err','Lỗi tải giọng: '+e);});
