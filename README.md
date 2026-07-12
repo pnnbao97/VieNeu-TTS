@@ -152,7 +152,7 @@ v3 Turbo supports **frame-level streaming**: audio starts in ~300 ms and generat
 ```python
 from vieneu import Vieneu
 tts = Vieneu()                                    # int8 backbone, CPU
-for chunk in tts.infer_stream("Xin chào các bạn!", voice="Trúc Ly"):
+for chunk in tts.infer_stream("Xin chào các bạn!", voice="Minh Đức"):
     play(chunk)                                   # np.float32 @ 48 kHz — play/write as it arrives
 ```
 
