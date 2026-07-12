@@ -185,11 +185,11 @@ for label, voice_id in voices:
 
 #### Streaming (real-time) 🔊
 
-v3 Turbo supports **frame-level streaming**: audio starts in ~300 ms and generation stays *ahead* of playback (RTF < 1 on CPU — ~2–3× on a laptop, ~7× on Apple Silicon), so it's ideal for realtime / interactive apps. Just iterate `infer_stream`:
+v3 Turbo supports **frame-level streaming**: audio starts in ~300 ms and generation stays *ahead* of playback (RTF < 1 on CPU — ~2–3× on a laptop, ~7× on Apple Silicon), so it's ideal for realtime / interactive apps. Streaming runs on the **ONNX/CPU** engine — low first-audio latency, frame-by-frame; the GPU/PyTorch engine is built for **batch throughput**, not streaming, so pin `backend="onnx"` for realtime. Just iterate `infer_stream`:
 
 ```python
 from vieneu import Vieneu
-tts = Vieneu()                                    # int8 backbone, CPU
+tts = Vieneu(backend="onnx")                      # force ONNX/CPU — the streaming path (int8)
 for chunk in tts.infer_stream("Xin chào các bạn!", voice="Minh Đức"):
     play(chunk)                                   # np.float32 @ 48 kHz — play/write as it arrives
 ```

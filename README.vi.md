@@ -156,11 +156,11 @@ for label, voice_id in voices:
 
 ### Streaming thời gian thực 🔊
 
-v3 Turbo hỗ trợ **streaming theo frame**: audio ra sau ~300 ms và generator luôn *chạy vượt* player (RTF < 1 trên CPU — ~2–3× trên laptop, ~7× trên Apple Silicon), rất hợp cho ứng dụng realtime / tương tác. Chỉ cần lặp `infer_stream`:
+v3 Turbo hỗ trợ **streaming theo frame**: audio ra sau ~300 ms và generator luôn *chạy vượt* player (RTF < 1 trên CPU — ~2–3× trên laptop, ~7× trên Apple Silicon), rất hợp cho ứng dụng realtime / tương tác. Streaming chạy trên engine **ONNX/CPU** — độ trễ audio đầu thấp, theo từng frame; engine GPU/PyTorch sinh ra để **batch throughput**, không dành cho streaming, nên hãy ép `backend="onnx"` cho realtime. Chỉ cần lặp `infer_stream`:
 
 ```python
 from vieneu import Vieneu
-tts = Vieneu()                                    # backbone int8, CPU
+tts = Vieneu(backend="onnx")                      # ép ONNX/CPU — đường dành cho streaming (int8)
 for chunk in tts.infer_stream("Xin chào các bạn!", voice="Trúc Ly"):
     play(chunk)                                   # np.float32 @ 48 kHz — phát/ghi ngay khi có
 ```

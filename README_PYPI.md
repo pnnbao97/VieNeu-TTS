@@ -92,9 +92,10 @@ audio = tts.infer("Nghe hay quá đi [cười].", voice="Trúc Ly")
 
 ### 🔊 Real-time streaming
 
-v3 Turbo streams frame-by-frame (first audio ~300 ms, RTF < 1 on CPU) — iterate `infer_stream`:
+v3 Turbo streams frame-by-frame (first audio ~300 ms, RTF < 1 on CPU). Streaming runs on the **ONNX/CPU** engine — the GPU/PyTorch engine is for **batch throughput**, not streaming, so pin `backend="onnx"` for realtime. Iterate `infer_stream`:
 
 ```python
+tts = Vieneu(backend="onnx")   # force ONNX/CPU — the streaming path (int8)
 for chunk in tts.infer_stream("Xin chào các bạn!", voice="Trúc Ly"):
     play(chunk)   # np.float32 @ 48 kHz, play/write as it arrives
 ```
