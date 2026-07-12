@@ -116,18 +116,17 @@ pip install vieneu
 ```
 
 **GPU (CUDA)** — only if you have an NVIDIA GPU. 
+> ℹ️ **When is GPU actually worth it?** The GPU win comes from **batching**, so it
+> only pays off on **long text** (many chunks generated together in one forward —
+> long-form or bulk synthesis). For **short text** the torch-free **CPU/ONNX** path
+> is usually *faster* (there's no batch to fill, and no kernel-launch overhead). Use
+> CPU for short, interactive calls; reach for GPU for long-form or high-throughput work.
 
 ```bash
 pip install torch==2.8.0 torchaudio==2.8.0 --index-url https://download.pytorch.org/whl/cu128
 pip install "transformers>=4.51"
 pip install vieneu
 ```
-
-> ℹ️ **When is GPU actually worth it?** The GPU win comes from **batching**, so it
-> only pays off on **long text** (many chunks generated together in one forward —
-> long-form or bulk synthesis). For **short text** the torch-free **CPU/ONNX** path
-> is usually *faster* (there's no batch to fill, and no kernel-launch overhead). Use
-> CPU for short, interactive calls; reach for GPU for long-form or high-throughput work.
 
 ```python
 import time
@@ -185,7 +184,7 @@ for label, voice_id in voices:
 
 #### Streaming (real-time) 🔊
 
-v3 Turbo supports **frame-level streaming**: audio starts in ~300 ms and generation stays *ahead* of playback (RTF < 1 on CPU — ~2–3× on a laptop, ~7× on Apple Silicon), so it's ideal for realtime / interactive apps. Streaming runs on the **ONNX/CPU** engine — low first-audio latency, frame-by-frame; the GPU/PyTorch engine is built for **batch throughput**, not streaming, so pin `backend="onnx"` for realtime. Just iterate `infer_stream`:
+> v3 Turbo supports **frame-level streaming**: audio starts in ~300 ms and generation stays *ahead* of playback (RTF < 1 on CPU — ~2–3× on a laptop, ~7× on Apple Silicon), so it's ideal for realtime / interactive apps. Streaming runs on the > **ONNX/CPU** engine — low first-audio latency, frame-by-frame; the GPU/PyTorch engine is built for **batch throughput**, not streaming, so pin `backend="onnx"` for realtime. Just iterate `infer_stream`:
 
 ```python
 from vieneu import Vieneu
