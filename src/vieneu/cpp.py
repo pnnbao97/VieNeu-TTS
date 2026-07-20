@@ -164,10 +164,14 @@ class CppVieNeuTTS(BaseVieneuTTS):
                 "--reference-text", reference_text,
                 "--text", phonemes,
                 "--temperature", str(temperature),
-                "--subtalker-temperature", str(subtalker_temperature),
+                "--request-option", f"subtalker_temperature={subtalker_temperature}",
                 "--threads", str(self.threads),
                 "--out", temp_out
             ]
+
+            ref_emb = Path(str(ref_audio) + ".emb.txt")
+            if ref_emb.exists():
+                cmd.extend(["--request-option", f"speaker_embedding_file={ref_emb}"])
 
             subprocess.run(cmd, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
             
