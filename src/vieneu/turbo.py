@@ -4,7 +4,8 @@ import logging
 from typing import Optional, List, Any, Generator, Dict
 from pathlib import Path
 from .base import BaseVieneuTTS
-from .utils import normalize_device, select_onnx_providers
+from .utils import normalize_device
+from vieneu_utils.onnx import select_onnx_providers
 from vieneu_utils.phonemize_text import phonemize_batch, phonemize_to_chunks
 from vieneu_utils.core_utils import split_into_chunks_v2, get_silence_duration_v2
 from tqdm import tqdm

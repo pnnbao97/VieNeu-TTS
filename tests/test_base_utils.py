@@ -8,7 +8,8 @@ sys.modules["torch"] = MagicMock()
 sys.modules["torch.backends"] = MagicMock()
 sys.modules["torch.backends.mps"] = MagicMock()
 
-from vieneu.utils import normalize_device, select_onnx_providers
+from vieneu.utils import normalize_device
+from vieneu_utils.onnx import select_onnx_providers
 from vieneu.base import BaseVieneuTTS
 
 class DummyTTS(BaseVieneuTTS):

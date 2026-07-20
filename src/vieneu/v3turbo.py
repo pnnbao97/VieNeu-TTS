@@ -20,6 +20,7 @@ from vieneu_utils.phonemize_text import (
     normalize_to_chunks_v3_with_gaps,
 )
 from vieneu_utils.core_utils import join_audio_chunks, gaps_to_silence
+from vieneu_utils.onnx import select_onnx_providers
 
 logger = logging.getLogger("Vieneu.V3Turbo")
 
@@ -40,6 +41,7 @@ class V3TurboVieNeuTTS(BaseVieneuTTS):
         precision: str = "int8",   # ONNX/CPU backbone: "int8" (mặc định, nhanh ~3x/frame, nhỏ 4x) | "fp32" (chất-lượng-tối-đa)
         onnx_subfolder: Optional[str] = None,   # override thủ công subfolder; None → suy từ `precision`
         threads: int = 0,   # ONNX/CPU intra-op threads; 0 = mặc định engine (~nhân vật lý, cap 8). Đặt số cụ thể để tinh chỉnh.
+        onnx_providers: Optional[List[str]] = None,
         max_batch_size: int = 32,   # GPU/PyTorch: trần số chunk gộp vào một forward (static batching). Batch thực = min(số_chunk, max_batch_size). Bỏ qua trên CPU/ONNX.
         **kwargs: Any,
     ):
@@ -64,7 +66,14 @@ class V3TurboVieNeuTTS(BaseVieneuTTS):
         if use_onnx:
             # Torch-free CPU engine. Reads its ONNX graphs from `onnx_subfolder` in the
             # model repo (uploaded separately).
+            import onnxruntime as ort
             from ._v3_turbo_engine.onnx_runtime_lite import OnnxV3LiteEngine
+
+            selected_providers = select_onnx_providers(
+                ort.get_available_providers(),
+                device=dev_type,
+                requested_providers=onnx_providers,
+            )
             logger.info(f"⏳ Loading VieNeu-TTS v3 Turbo (ONNX/CPU) from: {backbone_repo}/{onnx_subfolder} ...")
             self.engine = OnnxV3LiteEngine(
                 checkpoint_path=backbone_repo,
@@ -72,6 +81,7 @@ class V3TurboVieNeuTTS(BaseVieneuTTS):
                 onnx_dir=onnx_dir,
                 onnx_subfolder=onnx_subfolder,
                 threads=threads,
+                providers=selected_providers,
             )
             self.backend = "onnx"
         else:
