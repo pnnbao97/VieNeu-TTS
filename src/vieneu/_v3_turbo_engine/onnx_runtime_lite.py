@@ -72,7 +72,7 @@ class OnnxV3LiteEngine:
         onnx_subfolder: str = "onnx_int8",   # int8 backbone (mặc định); "onnx_update" = fp32
         codec_dir: Optional[str] = None,
         threads: int = 0,
-        providers: Optional[Sequence[str]] = None,
+        providers: Sequence[str] = ("CPUExecutionProvider",),
         **_kw,
     ):
         import onnxruntime as ort
@@ -146,7 +146,7 @@ class OnnxV3LiteEngine:
             intra = min(max((os.cpu_count() or 8) // 2, 1), 8)
         so.intra_op_num_threads = intra
         self.ort_intra_op_threads = intra
-        self.onnx_providers = list(providers or ["CPUExecutionProvider"])
+        self.onnx_providers = list(providers)
         prov = self.onnx_providers
         self.sess_pre = ort.InferenceSession(str(vd / "vieneu_prefill.onnx"), so, providers=prov)
         self.sess_dec = ort.InferenceSession(str(vd / "vieneu_decode_step.onnx"), so, providers=prov)
