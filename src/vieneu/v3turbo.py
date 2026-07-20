@@ -20,6 +20,7 @@ from vieneu_utils.phonemize_text import (
     normalize_to_chunks_v3_with_gaps,
 )
 from vieneu_utils.core_utils import join_audio_chunks, gaps_to_silence
+from vieneu_utils.onnx import select_onnx_providers
 
 logger = logging.getLogger("Vieneu.V3Turbo")
 
@@ -45,6 +46,7 @@ class V3TurboVieNeuTTS(BaseVieneuTTS):
     ):
         super().__init__()
         self.sample_rate = 48_000
+        onnx_providers = kwargs.pop("onnx_providers", None)
 
         # `precision` chỉ áp cho đường ONNX/CPU (chọn subfolder graph int8 vs fp32).
         # Đường PyTorch/GPU dùng torch fp32/bf16, không liên quan.
@@ -64,7 +66,14 @@ class V3TurboVieNeuTTS(BaseVieneuTTS):
         if use_onnx:
             # Torch-free CPU engine. Reads its ONNX graphs from `onnx_subfolder` in the
             # model repo (uploaded separately).
+            import onnxruntime as ort
             from ._v3_turbo_engine.onnx_runtime_lite import OnnxV3LiteEngine
+
+            selected_providers = select_onnx_providers(
+                ort.get_available_providers(),
+                device=dev_type,
+                requested_providers=onnx_providers,
+            )
             logger.info(f"⏳ Loading VieNeu-TTS v3 Turbo (ONNX/CPU) from: {backbone_repo}/{onnx_subfolder} ...")
             self.engine = OnnxV3LiteEngine(
                 checkpoint_path=backbone_repo,
@@ -72,6 +81,7 @@ class V3TurboVieNeuTTS(BaseVieneuTTS):
                 onnx_dir=onnx_dir,
                 onnx_subfolder=onnx_subfolder,
                 threads=threads,
+                providers=selected_providers,
             )
             self.backend = "onnx"
         else:
