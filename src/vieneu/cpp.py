@@ -29,8 +29,11 @@ class CppVieNeuTTS(BaseVieneuTTS):
             binary_path = os.environ.get("VIENEU_CPP_BINARY_PATH")
             if not binary_path:
                 possible_paths = [
-                    Path.home() / "git/Vienounce/ref/audio.cpp/build/linux-cpu-release/bin/audiocpp_cli",
-                    Path(__file__).parents[3] / "ref/audio.cpp/build/linux-cpu-release/bin/audiocpp_cli"
+                    Path.cwd() / "audio.cpp/build/linux-cpu-release/bin/audiocpp_cli",
+                    Path.home() / "git/audio.cpp/build/linux-cpu-release/bin/audiocpp_cli",
+                    Path.home() / "audio.cpp/build/linux-cpu-release/bin/audiocpp_cli",
+                    Path(__file__).parents[3] / "ref/audio.cpp/build/linux-cpu-release/bin/audiocpp_cli",
+                    Path(__file__).parents[4] / "audio.cpp/build/linux-cpu-release/bin/audiocpp_cli",
                 ]
                 for p in possible_paths:
                     if p.exists():
@@ -38,7 +41,13 @@ class CppVieNeuTTS(BaseVieneuTTS):
                         break
             if not binary_path:
                 raise ValueError(
-                    "C++ CLI binary path must be provided via `binary_path` or `VIENEU_CPP_BINARY_PATH` env var."
+                    "C++ CLI binary `audiocpp_cli` was not found in default paths.\n"
+                    "Please either:\n"
+                    "1. Provide `binary_path` explicitly during initialization: Vieneu(mode='cpp', binary_path='path/to/audiocpp_cli')\n"
+                    "2. Set the environment variable `VIENEU_CPP_BINARY_PATH` to point to it.\n"
+                    "3. Clone and build the C++ model runner from the vietneu-tts-v3-turbo branch:\n"
+                    "   git clone https://github.com/phuocnguyen90/audio.cpp.git\n"
+                    "   cd audio.cpp && git checkout vietneu-tts-v3-turbo && ./scripts/build_linux.sh --backend cpu --target audiocpp_cli"
                 )
         self.binary_path = str(binary_path)
 
@@ -47,8 +56,11 @@ class CppVieNeuTTS(BaseVieneuTTS):
             model_path = os.environ.get("VIENEU_CPP_MODEL_PATH")
             if not model_path:
                 possible_paths = [
-                    Path.home() / "git/Vienounce/ref/audio.cpp/models/VieNeu-TTS-v3-Turbo/model.gguf",
-                    Path(__file__).parents[3] / "ref/audio.cpp/models/VieNeu-TTS-v3-Turbo/model.gguf"
+                    Path.cwd() / "audio.cpp/models/VieNeu-TTS-v3-Turbo/model.gguf",
+                    Path.home() / "git/audio.cpp/models/VieNeu-TTS-v3-Turbo/model.gguf",
+                    Path.home() / "audio.cpp/models/VieNeu-TTS-v3-Turbo/model.gguf",
+                    Path(__file__).parents[3] / "ref/audio.cpp/models/VieNeu-TTS-v3-Turbo/model.gguf",
+                    Path(__file__).parents[4] / "audio.cpp/models/VieNeu-TTS-v3-Turbo/model.gguf",
                 ]
                 for p in possible_paths:
                     if p.exists():
@@ -56,7 +68,11 @@ class CppVieNeuTTS(BaseVieneuTTS):
                         break
             if not model_path:
                 raise ValueError(
-                    "GGUF model path must be provided via `model_path` or `VIENEU_CPP_MODEL_PATH` env var."
+                    "GGUF model file was not found in default paths.\n"
+                    "Please either:\n"
+                    "1. Provide `model_path` explicitly: Vieneu(mode='cpp', model_path='path/to/model.gguf')\n"
+                    "2. Set the environment variable `VIENEU_CPP_MODEL_PATH`.\n"
+                    "3. Download the GGUF weights to `audio.cpp/models/VieNeu-TTS-v3-Turbo/model.gguf`."
                 )
         self.model_path = str(model_path)
 
@@ -67,8 +83,11 @@ class CppVieNeuTTS(BaseVieneuTTS):
         self.default_ref_audio = os.environ.get("VIENEU_CPP_REF_AUDIO")
         if not self.default_ref_audio:
             possible_ref_paths = [
-                Path.home() / "git/Vienounce/ref/audio.cpp/assets/resources/sample.wav",
-                Path(__file__).parents[3] / "ref/audio.cpp/assets/resources/sample.wav"
+                Path.cwd() / "audio.cpp/assets/resources/sample.wav",
+                Path.home() / "git/audio.cpp/assets/resources/sample.wav",
+                Path.home() / "audio.cpp/assets/resources/sample.wav",
+                Path(__file__).parents[3] / "ref/audio.cpp/assets/resources/sample.wav",
+                Path(__file__).parents[4] / "audio.cpp/assets/resources/sample.wav",
             ]
             for p in possible_ref_paths:
                 if p.exists():

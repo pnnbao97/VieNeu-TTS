@@ -87,6 +87,10 @@ curl -LsSf https://astral.sh/uv/install.sh | sh
      ```bash
      uv sync --group gpu
      ```
+   - **Option 3: High-Performance C++ Backend (audio.cpp)**
+     > 💡 *Bypasses Python PyTorch/ONNX runtime overhead completely. Achieves instant load/warmup times and 4x faster-than-real-time CPU execution using GGUF quantization. Recommended for production, edge devices, or resource-constrained offline environments.*
+     > 
+     > See [docs/cpp_backend.md](file:///home/phuoc/git/Vienounce/VieNeu-TTS/docs/cpp_backend.md) for full compilation and setup instructions.
 
 3. **Start the Web UI:**
    ```bash
