@@ -4,7 +4,7 @@ import logging
 from typing import Optional, List, Any, Generator, Dict
 from pathlib import Path
 from .base import BaseVieneuTTS
-from .utils import normalize_device
+from .utils import normalize_device, select_onnx_providers
 from vieneu_utils.phonemize_text import phonemize_batch, phonemize_to_chunks
 from vieneu_utils.core_utils import split_into_chunks_v2, get_silence_duration_v2
 from tqdm import tqdm
@@ -16,16 +16,21 @@ logger = logging.getLogger("Vieneu.Turbo")
 class BaseTurboVieNeuTTS(BaseVieneuTTS):
     """Internal base class for Turbo TTS variants to share ONNX and prompt logic."""
 
-    def __init__(self, codec_repo=None, codec_device="cpu"):
+    def __init__(self, codec_repo=None, codec_device="cpu", onnx_providers=None):
         super().__init__(codec_repo=codec_repo, codec_device=codec_device)
         self.decoder_sess = None
         self.encoder_sess = None
         self._is_onnx_codec = True
+        self._onnx_providers = onnx_providers
 
     def _get_onnx_providers(self, device: str) -> list:
-        if device == "cuda":
-            return ["CUDAExecutionProvider", "CPUExecutionProvider"]
-        return ["CPUExecutionProvider"]
+        import onnxruntime as ort
+
+        return select_onnx_providers(
+            ort.get_available_providers(),
+            device=device,
+            requested_providers=self._onnx_providers,
+        )
 
     def _load_decoder(self, decoder_repo, decoder_filename, device, hf_token=None):
         import onnxruntime as ort
@@ -125,17 +130,19 @@ class TurboGPUVieNeuTTS(BaseTurboVieNeuTTS):
         device: str = "cuda",
         backend: str = "standard",
         hf_token: Optional[str] = None,
+        onnx_providers: Optional[List[str]] = None,
         **kwargs
     ):
-        super().__init__()
+        super().__init__(onnx_providers=onnx_providers)
+        self.onnx_device = device
         self.device = normalize_device(device)
         self.backend = backend.lower()
         self.backbone = None
         self.tokenizer = None
 
         self._load_backbone(backbone_repo, self.device, hf_token, **kwargs)
-        self._load_decoder(decoder_repo, decoder_filename, self.device, hf_token)
-        self._load_encoder(encoder_repo, encoder_filename, self.device, hf_token)
+        self._load_decoder(decoder_repo, decoder_filename, self.onnx_device, hf_token)
+        self._load_encoder(encoder_repo, encoder_filename, self.onnx_device, hf_token)
         self._load_voices(backbone_repo, hf_token)
 
     def _load_backbone(self, repo, device, hf_token=None, **kwargs):
@@ -284,14 +291,16 @@ class TurboVieNeuTTS(BaseTurboVieNeuTTS):
         encoder_filename: str = "vieneu_encoder.onnx",
         device: str = "cpu",
         hf_token: Optional[str] = None,
+        onnx_providers: Optional[List[str]] = None,
         **kwargs
     ):
-        super().__init__()
+        super().__init__(onnx_providers=onnx_providers)
+        self.onnx_device = device
         self.device = normalize_device(device)
         self.backbone = None
         self._load_backbone(backbone_repo, backbone_filename, self.device, hf_token, **kwargs)
-        self._load_decoder(decoder_repo, decoder_filename, self.device, hf_token)
-        self._load_encoder(encoder_repo, encoder_filename, self.device, hf_token)
+        self._load_decoder(decoder_repo, decoder_filename, self.onnx_device, hf_token)
+        self._load_encoder(encoder_repo, encoder_filename, self.onnx_device, hf_token)
         self._load_voices(backbone_repo, hf_token)
 
     def _load_backbone(self, backbone_repo, backbone_filename, device, hf_token=None, **kwargs):

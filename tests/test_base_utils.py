@@ -8,7 +8,7 @@ sys.modules["torch"] = MagicMock()
 sys.modules["torch.backends"] = MagicMock()
 sys.modules["torch.backends.mps"] = MagicMock()
 
-from vieneu.utils import normalize_device
+from vieneu.utils import normalize_device, select_onnx_providers
 from vieneu.base import BaseVieneuTTS
 
 class DummyTTS(BaseVieneuTTS):
@@ -30,6 +30,45 @@ class TestBaseUtils(unittest.TestCase):
             self.assertEqual(normalize_device("mps"), "mps")
         with patch("torch.backends.mps.is_available", return_value=False, create=True):
             self.assertEqual(normalize_device("mps"), "cpu")
+
+    def test_select_onnx_providers_for_installed_accelerators(self):
+        available = [
+            "CoreMLExecutionProvider",
+            "OpenVINOExecutionProvider",
+            "DmlExecutionProvider",
+            "CPUExecutionProvider",
+        ]
+
+        self.assertEqual(
+            select_onnx_providers(available, device="mps"),
+            ["CoreMLExecutionProvider", "CPUExecutionProvider"],
+        )
+        self.assertEqual(
+            select_onnx_providers(available, device="xpu"),
+            ["OpenVINOExecutionProvider", "CPUExecutionProvider"],
+        )
+        self.assertEqual(
+            select_onnx_providers(available, device="directml"),
+            ["DmlExecutionProvider", "CPUExecutionProvider"],
+        )
+
+    def test_select_onnx_providers_respects_explicit_order(self):
+        available = ["CUDAExecutionProvider", "CPUExecutionProvider"]
+
+        self.assertEqual(
+            select_onnx_providers(
+                available,
+                requested_providers=["CPUExecutionProvider", "CUDAExecutionProvider"],
+            ),
+            ["CPUExecutionProvider", "CUDAExecutionProvider"],
+        )
+
+    def test_select_onnx_providers_rejects_unavailable_provider(self):
+        with self.assertRaisesRegex(ValueError, "CoreMLExecutionProvider"):
+            select_onnx_providers(
+                ["CPUExecutionProvider"],
+                requested_providers=["CoreMLExecutionProvider"],
+            )
 
     def test_to_list(self):
         tts = DummyTTS()
