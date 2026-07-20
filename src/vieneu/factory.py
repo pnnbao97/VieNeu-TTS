@@ -19,6 +19,9 @@ def Vieneu(mode="v3turbo", **kwargs):
         case "v3turbo":
             from .v3turbo import V3TurboVieNeuTTS
             return V3TurboVieNeuTTS(**kwargs)
+        case "cpp" | "audiocpp":
+            from .cpp import CppVieNeuTTS
+            return CppVieNeuTTS(**kwargs)
         case "remote" | "api":
             from .remote import RemoteVieNeuTTS
             return RemoteVieNeuTTS(**kwargs)
