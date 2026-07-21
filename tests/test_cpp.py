@@ -41,7 +41,7 @@ def test_cpp_vieneu_tts_init_defaults():
     assert tts.model_path == "/fake/model.gguf"
     assert tts.default_ref_audio == "/fake/sample.wav"
     assert tts.threads == 8
-    assert tts.timeout == 45.0
+    assert pytest.approx(tts.timeout) == 45.0
     assert tts.sample_rate == 48000
 
 
@@ -74,7 +74,7 @@ def test_cpp_vieneu_tts_infer_success(mock_run, mock_phonemize, mock_sf_read, tm
     assert "--text" in cmd and cmd[cmd.index("--text") + 1] == "s i n c h a o"
     assert "--voice-ref" in cmd and cmd[cmd.index("--voice-ref") + 1] == str(dummy_ref)
     assert "--reference-text" not in cmd
-    assert kwargs.get("timeout") == 60.0
+    assert pytest.approx(kwargs.get("timeout")) == 60.0
 
 
 @patch("vieneu.cpp.phonemize_text_with_emotions")
