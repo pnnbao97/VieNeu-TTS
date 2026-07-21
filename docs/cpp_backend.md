@@ -27,15 +27,12 @@ The following benchmark compares the native CPU backends of VieNeu-TTS v3 Turbo 
 
 ### 1. Clone and Build the C++ Engine
 
-Clone the C++ model runner repository, switch to the correct branch containing the model implementation, and build the target binary:
+Clone the C++ model runner repository and build the target binary:
 
 ```bash
 # Clone the repository
-git clone https://github.com/phuocnguyen90/audio.cpp.git
+git clone https://github.com/0xShug0/audio.cpp.git
 cd audio.cpp
-
-# Checkout the branch containing the vietneu_tts implementation
-git checkout vietneu-tts-v3-turbo
 
 # Compile for CPU backend (use --backend cuda for GPU builds)
 ./scripts/build_linux.sh --backend cpu --target audiocpp_cli

@@ -14,94 +14,47 @@ CLI_REL_PATH = "audio.cpp/build/linux-cpu-release/bin/audiocpp_cli"
 MODEL_REL_PATH = "audio.cpp/models/VieNeu-TTS-v3-Turbo/model.gguf"
 REF_AUDIO_REL_PATH = "audio.cpp/assets/resources/sample.wav"
 
-def _resolve_binary_path(binary_path: Optional[str]) -> str:
-    """Helper to resolve C++ CLI binary path while keeping cognitive complexity low."""
-    if binary_path is not None:
-        return str(binary_path)
 
-    env_path = os.environ.get("VIENEU_CPP_BINARY_PATH")
+def _resolve_asset_path(
+    explicit_path: Optional[Union[str, Path]],
+    env_var: str,
+    rel_path: str,
+    asset_name: str,
+    required: bool = True,
+    error_instructions: str = "",
+) -> Optional[str]:
+    """Helper to resolve asset paths cleanly while avoiding code duplication."""
+    if explicit_path is not None:
+        return str(explicit_path)
+
+    env_path = os.environ.get(env_var)
     if env_path:
         return env_path
 
     possible_roots = [Path.cwd(), Path.home(), Path.home() / "git"]
     for root in possible_roots:
-        p = root / CLI_REL_PATH
+        p = root / rel_path
         if p.exists():
             return str(p)
 
-    pkg_fallback = Path(__file__).parents[4] / CLI_REL_PATH
-    if pkg_fallback.exists():
-        return str(pkg_fallback)
-
-    pkg_fallback_ref = Path(__file__).parents[3] / "ref" / CLI_REL_PATH
-    if pkg_fallback_ref.exists():
-        return str(pkg_fallback_ref)
-
-    raise ValueError(
-        "C++ CLI binary `audiocpp_cli` was not found in default paths.\n"
-        "Please either:\n"
-        "1. Provide `binary_path` explicitly during initialization: Vieneu(mode='cpp', binary_path='path/to/audiocpp_cli')\n"
-        "2. Set the environment variable `VIENEU_CPP_BINARY_PATH` to point to it.\n"
-        "3. Clone and build the C++ model runner from the vietneu-tts-v3-turbo branch:\n"
-        "   git clone https://github.com/phuocnguyen90/audio.cpp.git\n"
-        "   cd audio.cpp && git checkout vietneu-tts-v3-turbo && ./scripts/build_linux.sh --backend cpu --target audiocpp_cli"
-    )
-
-def _resolve_model_path(model_path: Optional[str]) -> str:
-    """Helper to resolve GGUF model path while keeping cognitive complexity low."""
-    if model_path is not None:
-        return str(model_path)
-
-    env_path = os.environ.get("VIENEU_CPP_MODEL_PATH")
-    if env_path:
-        return env_path
-
-    possible_roots = [Path.cwd(), Path.home(), Path.home() / "git"]
-    for root in possible_roots:
-        p = root / MODEL_REL_PATH
+    try:
+        repo_root = Path(__file__).resolve().parents[2]
+        p = repo_root / rel_path
         if p.exists():
             return str(p)
+    except IndexError:
+        pass
 
-    pkg_fallback = Path(__file__).parents[4] / MODEL_REL_PATH
-    if pkg_fallback.exists():
-        return str(pkg_fallback)
-
-    pkg_fallback_ref = Path(__file__).parents[3] / "ref" / MODEL_REL_PATH
-    if pkg_fallback_ref.exists():
-        return str(pkg_fallback_ref)
-
-    raise ValueError(
-        "GGUF model file was not found in default paths.\n"
-        "Please either:\n"
-        "1. Provide `model_path` explicitly: Vieneu(mode='cpp', model_path='path/to/model.gguf')\n"
-        "2. Set the environment variable `VIENEU_CPP_MODEL_PATH`.\n"
-        "3. Download the GGUF weights to `audio.cpp/models/VieNeu-TTS-v3-Turbo/model.gguf`."
-    )
-
-def _resolve_ref_audio(default_ref_audio: Optional[str]) -> Optional[str]:
-    """Helper to resolve default reference audio path while keeping cognitive complexity low."""
-    if default_ref_audio:
-        return default_ref_audio
-
-    env_path = os.environ.get("VIENEU_CPP_REF_AUDIO")
-    if env_path:
-        return env_path
-
-    possible_roots = [Path.cwd(), Path.home(), Path.home() / "git"]
-    for root in possible_roots:
-        p = root / REF_AUDIO_REL_PATH
-        if p.exists():
-            return str(p)
-
-    pkg_fallback = Path(__file__).parents[4] / REF_AUDIO_REL_PATH
-    if pkg_fallback.exists():
-        return str(pkg_fallback)
-
-    pkg_fallback_ref = Path(__file__).parents[3] / "ref" / REF_AUDIO_REL_PATH
-    if pkg_fallback_ref.exists():
-        return str(pkg_fallback_ref)
-
+    if required:
+        raise ValueError(
+            f"{asset_name} was not found in default paths.\n"
+            f"Please either:\n"
+            f"1. Provide `{asset_name.lower().replace(' ', '_')}` explicitly during initialization.\n"
+            f"2. Set the environment variable `{env_var}` to point to it.\n"
+            f"{error_instructions}"
+        )
     return None
+
 
 class CppVieNeuTTS(BaseVieneuTTS):
     """
@@ -112,37 +65,61 @@ class CppVieNeuTTS(BaseVieneuTTS):
 
     def __init__(
         self,
-        model_path: Optional[str] = None,
-        binary_path: Optional[str] = None,
+        model_path: Optional[Union[str, Path]] = None,
+        binary_path: Optional[Union[str, Path]] = None,
         threads: int = 4,
-        **kwargs: Any
+        timeout: float = 60.0,
+        default_ref_audio: Optional[Union[str, Path]] = None,
+        **kwargs: Any,
     ):
         super().__init__()
-        self.binary_path = _resolve_binary_path(binary_path)
-        self.model_path = _resolve_model_path(model_path)
-        self.threads = threads
-        self.sample_rate = 48000
-        self.default_ref_audio = _resolve_ref_audio(kwargs.get("default_ref_audio"))
-        self.default_ref_text = (
-            "Some call me nature. Others call me Mother Nature. "
-            "I've been here for over 4.5 billion years. 22,500 times longer than you."
+        self.binary_path = _resolve_asset_path(
+            binary_path,
+            "VIENEU_CPP_BINARY_PATH",
+            CLI_REL_PATH,
+            "C++ CLI binary `audiocpp_cli`",
+            required=True,
+            error_instructions=(
+                "3. Clone and build the C++ model runner:\n"
+                "   git clone https://github.com/0xShug0/audio.cpp.git\n"
+                "   cd audio.cpp && ./scripts/build_linux.sh --backend cpu --target audiocpp_cli"
+            ),
         )
+        self.model_path = _resolve_asset_path(
+            model_path,
+            "VIENEU_CPP_MODEL_PATH",
+            MODEL_REL_PATH,
+            "GGUF model file",
+            required=True,
+            error_instructions="3. Download the GGUF weights to `audio.cpp/models/VieNeu-TTS-v3-Turbo/model.gguf`.",
+        )
+        self.default_ref_audio = _resolve_asset_path(
+            default_ref_audio or kwargs.get("default_ref_audio"),
+            "VIENEU_CPP_REF_AUDIO",
+            REF_AUDIO_REL_PATH,
+            "Default reference audio",
+            required=False,
+        )
+        self.threads = threads
+        self.timeout = timeout
+        self.sample_rate = 48000
 
     def infer(
         self,
         text: str,
         ref_audio: Optional[Union[str, Path]] = None,
-        reference_text: Optional[str] = None,
+        voice: Optional[Union[str, dict]] = None,
         temperature: float = 0.8,
         subtalker_temperature: float = 0.8,
-        **kwargs: Any
+        apply_watermark: bool = True,
+        timeout: Optional[float] = None,
+        **kwargs: Any,
     ) -> np.ndarray:
-        if ref_audio is None:
-            ref_audio = self.default_ref_audio
-            if ref_audio is None:
-                raise ValueError("Must provide either a default reference audio or pass it via `ref_audio`.")
-        if reference_text is None:
-            reference_text = self.default_ref_text
+        audio_ref = ref_audio or self.default_ref_audio
+        if audio_ref is None:
+            raise ValueError("Must provide either a default reference audio or pass it via `ref_audio`.")
+
+        eff_timeout = timeout if timeout is not None else self.timeout
 
         # 1. Run the phonemizer on the text input
         phonemes = phonemize_text_with_emotions(text)
@@ -160,24 +137,31 @@ class CppVieNeuTTS(BaseVieneuTTS):
                 "--family", "vietneu_tts",
                 "--model", self.model_path,
                 "--backend", "cpu",
-                "--voice-ref", str(ref_audio),
-                "--reference-text", reference_text,
+                "--voice-ref", str(audio_ref),
                 "--text", phonemes,
                 "--temperature", str(temperature),
                 "--request-option", f"subtalker_temperature={subtalker_temperature}",
                 "--threads", str(self.threads),
-                "--out", temp_out
+                "--out", temp_out,
             ]
 
-            ref_emb = Path(str(ref_audio) + ".emb.txt")
+            ref_emb = Path(str(audio_ref) + ".emb.txt")
             if ref_emb.exists():
                 cmd.extend(["--request-option", f"speaker_embedding_file={ref_emb}"])
 
-            subprocess.run(cmd, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-            
+            subprocess.run(
+                cmd,
+                check=True,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                timeout=eff_timeout,
+            )
+
             # 4. Load the generated audio output
             audio, _ = sf.read(temp_out, dtype="float32")
-            return audio
+            return self._apply_watermark(audio) if apply_watermark else audio
+        except subprocess.TimeoutExpired as e:
+            raise RuntimeError(f"C++ TTS execution timed out after {eff_timeout} seconds.") from e
         except subprocess.CalledProcessError as e:
             stderr_output = e.stderr.decode(errors="replace") if e.stderr else ""
             raise RuntimeError(f"C++ TTS execution failed: {stderr_output}") from e
