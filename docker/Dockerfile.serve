@@ -31,13 +31,13 @@ WORKDIR /workspace
 # Copy only requirements first
 COPY pyproject.toml uv.lock ./
 # Note: We use --no-dev and only gpu group
-RUN uv sync --no-dev --group gpu --no-install-project
+RUN uv sync --no-dev --group gpu --no-install-project --frozen --no-build
 
 # Copy the rest
 COPY . .
 
 # Install the project itself (creates the vieneu-serve CLI)
-RUN uv sync --no-dev --group gpu
+RUN uv sync --no-dev --group gpu --frozen --no-build
 
 # Expose LMDeploy port
 EXPOSE 23333

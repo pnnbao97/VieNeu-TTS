@@ -5486,6 +5486,7 @@ dependencies = [
     { name = "gradio" },
     { name = "huggingface-hub", version = "0.36.0", source = { registry = "https://pypi.org/simple" }, marker = "(python_full_version < '3.11' and sys_platform == 'win32') or (python_full_version == '3.12.*' and sys_platform == 'win32') or (sys_platform != 'darwin' and sys_platform != 'win32')" },
     { name = "huggingface-hub", version = "1.13.0", source = { registry = "https://pypi.org/simple" }, marker = "(python_full_version == '3.11.*' and sys_platform == 'win32') or (python_full_version >= '3.13' and sys_platform == 'win32') or sys_platform == 'darwin'" },
+    { name = "librosa" },
     { name = "numpy", version = "2.2.6", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11'" },
     { name = "numpy", version = "2.3.4", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.11'" },
     { name = "onnxruntime", version = "1.24.3", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11'" },
@@ -5501,7 +5502,6 @@ dependencies = [
 [package.optional-dependencies]
 legacy = [
     { name = "accelerate", marker = "sys_platform == 'darwin'" },
-    { name = "librosa" },
     { name = "llama-cpp-python", version = "0.3.16", source = { registry = "https://abetlen.github.io/llama-cpp-python/whl/metal/" }, marker = "sys_platform == 'darwin'" },
     { name = "llama-cpp-python", version = "0.3.16", source = { registry = "https://pypi.org/simple" }, marker = "(python_full_version != '3.12.*' and sys_platform == 'win32') or (sys_platform != 'darwin' and sys_platform != 'win32')" },
     { name = "llama-cpp-python", version = "0.3.16", source = { url = "https://github.com/pnnbao97/VieNeu-TTS/releases/download/wheels-v0.3.16/llama_cpp_python-0.3.16-cp312-cp312-win_amd64.whl" }, marker = "python_full_version == '3.12.*' and sys_platform == 'win32'" },
@@ -5557,7 +5557,7 @@ requires-dist = [
     { name = "accelerate", marker = "sys_platform == 'darwin' and extra == 'legacy'" },
     { name = "gradio", specifier = ">=5.49.1" },
     { name = "huggingface-hub" },
-    { name = "librosa", marker = "extra == 'legacy'", specifier = ">=0.11.0" },
+    { name = "librosa", specifier = ">=0.11.0" },
     { name = "llama-cpp-python", marker = "sys_platform == 'darwin' and extra == 'legacy'", specifier = "==0.3.16", index = "https://abetlen.github.io/llama-cpp-python/whl/metal/" },
     { name = "llama-cpp-python", marker = "sys_platform != 'darwin' and sys_platform != 'win32' and extra == 'legacy'", specifier = "==0.3.16", index = "https://pypi.org/simple" },
     { name = "llama-cpp-python", marker = "python_full_version == '3.12.*' and sys_platform == 'win32' and extra == 'legacy'", url = "https://github.com/pnnbao97/VieNeu-TTS/releases/download/wheels-v0.3.16/llama_cpp_python-0.3.16-cp312-cp312-win_amd64.whl" },

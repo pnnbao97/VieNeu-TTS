@@ -36,7 +36,7 @@ WORKDIR /workspace
 # --- Stage: Development ---
 FROM base AS dev
 COPY pyproject.toml uv.lock ./
-RUN uv sync
+RUN uv sync --frozen --no-build
 
 CMD ["/bin/bash"]
 
@@ -44,7 +44,7 @@ CMD ["/bin/bash"]
 FROM base AS prod
 COPY . .
 # Enable frozen sync as we have the correct uv.lock
-RUN uv sync --no-dev --group gpu
+RUN uv sync --no-dev --group gpu --frozen --no-build
 
 EXPOSE 7860
 # Use env vars for server config (GRADIO_SERVER_NAME, GRADIO_SERVER_PORT are read by gradio_main.py)

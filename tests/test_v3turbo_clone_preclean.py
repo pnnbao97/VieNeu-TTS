@@ -20,8 +20,15 @@ class TestV3TurboClonePreclean:
 
             cleaned = V3TurboVieNeuTTS._preclean_reference_audio(src)
 
-            assert cleaned is not None
-            assert Path(cleaned).exists()
-            clean_wav, clean_sr = sf.read(cleaned, dtype="float32", always_2d=False)
-            assert clean_sr == sr
-            assert len(clean_wav) < len(wav)
+            try:
+                assert cleaned is not None
+                assert Path(cleaned).exists()
+                clean_wav, clean_sr = sf.read(cleaned, dtype="float32", always_2d=False)
+                assert clean_sr == sr
+                assert len(clean_wav) < len(wav)
+            finally:
+                if cleaned and Path(cleaned).exists():
+                    try:
+                        Path(cleaned).unlink()
+                    except Exception:
+                        pass
