@@ -39,6 +39,29 @@ def test_turbo_gguf_init(mock_hf, mock_llama, mock_ort):
     assert tts.decoder_sess is not None
     mock_llama.assert_called_once()
 
+
+@patch("onnxruntime.InferenceSession")
+@patch(
+    "onnxruntime.get_available_providers",
+    return_value=["CoreMLExecutionProvider", "CPUExecutionProvider"],
+)
+@patch("llama_cpp.Llama")
+@patch("huggingface_hub.hf_hub_download", return_value="dummy_path")
+def test_turbo_uses_requested_onnx_providers(
+    mock_hf, mock_llama, mock_available, mock_ort
+):
+    requested = ["CoreMLExecutionProvider", "CPUExecutionProvider"]
+
+    TurboVieNeuTTS(
+        backbone_repo="dummy",
+        device="cpu",
+        onnx_providers=requested,
+    )
+
+    assert mock_available.call_count == 2
+    assert mock_ort.call_count == 2
+    assert all(call.kwargs["providers"] == requested for call in mock_ort.call_args_list)
+
 @patch("onnxruntime.InferenceSession")
 @patch("llama_cpp.Llama")
 @patch("huggingface_hub.hf_hub_download", return_value="dummy_path")

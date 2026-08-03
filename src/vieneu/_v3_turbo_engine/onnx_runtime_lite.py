@@ -29,7 +29,7 @@ import os
 import threading
 import time
 from pathlib import Path
-from typing import Generator, List, Optional, Tuple, Union
+from typing import Generator, List, Optional, Sequence, Tuple, Union
 
 import numpy as np
 
@@ -72,6 +72,7 @@ class OnnxV3LiteEngine:
         onnx_subfolder: str = "onnx_int8",   # int8 backbone (mặc định); "onnx_update" = fp32
         codec_dir: Optional[str] = None,
         threads: int = 0,
+        providers: Sequence[str] = ("CPUExecutionProvider",),
         **_kw,
     ):
         import onnxruntime as ort
@@ -145,7 +146,8 @@ class OnnxV3LiteEngine:
             intra = min(max((os.cpu_count() or 8) // 2, 1), 8)
         so.intra_op_num_threads = intra
         self.ort_intra_op_threads = intra
-        prov = ["CPUExecutionProvider"]
+        self.onnx_providers = list(providers)
+        prov = self.onnx_providers
         self.sess_pre = ort.InferenceSession(str(vd / "vieneu_prefill.onnx"), so, providers=prov)
         self.sess_dec = ort.InferenceSession(str(vd / "vieneu_decode_step.onnx"), so, providers=prov)
         self.sess_ac = ort.InferenceSession(str(vd / "vieneu_acoustic_cached.onnx"), so, providers=prov)
@@ -190,7 +192,7 @@ class OnnxV3LiteEngine:
         try:
             from .onnx_denoiser import OnnxDenoiser
             path = self._resolve_root_file("denoiser.onnx")
-            return OnnxDenoiser(path) if path else None
+            return OnnxDenoiser(path, providers=self.onnx_providers) if path else None
         except Exception:
             return None
 
@@ -209,7 +211,11 @@ class OnnxV3LiteEngine:
         if self.speaker_encoder is None:
             from .speaker import OnnxSpeakerEncoder
             self.speaker_encoder = OnnxSpeakerEncoder.from_pretrained(
-                self.checkpoint_path, filename=self.speaker_encoder_filename, device="cpu")
+                self.checkpoint_path,
+                filename=self.speaker_encoder_filename,
+                device="cpu",
+                providers=self.onnx_providers,
+            )
         return self.speaker_encoder
 
     # ── numpy embedding / speaker anchor / heads / sampling ────────────────────
@@ -554,7 +560,10 @@ class OnnxV3LiteEngine:
         lens = np.array([stereo.shape[-1]], dtype=np.int32)
         if self._sess_codec_enc is None:
             import onnxruntime as ort
-            self._sess_codec_enc = ort.InferenceSession(self._codec_enc_path, providers=["CPUExecutionProvider"])
+            self._sess_codec_enc = ort.InferenceSession(
+                self._codec_enc_path,
+                providers=self.onnx_providers,
+            )
         out = self._sess_codec_enc.run(None, {"waveform": stereo, "input_lengths": lens})
         return np.asarray(out[0][0], dtype=np.int64)               # (T, n_vq)
 

@@ -24,6 +24,7 @@ def normalize_device(device: str) -> str:
         return "xpu"
     return "cpu"
 
+
 def _linear_overlap_add(frames: List[np.ndarray], stride: int) -> np.ndarray:
     """
     Perform linear overlap-add on a list of audio frames.
