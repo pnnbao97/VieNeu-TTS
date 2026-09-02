@@ -47,6 +47,16 @@ def test_factory_xpu(mock_xpu):
     Vieneu(mode="xpu")
     mock_xpu.assert_called_once()
 
+@patch("vieneu.cpp.CppVieNeuTTS", create=True)
+def test_factory_cpp(mock_cpp):
+    Vieneu(mode="cpp")
+    mock_cpp.assert_called_once()
+
+@patch("vieneu.cpp.CppVieNeuTTS", create=True)
+def test_factory_audiocpp(mock_cpp):
+    Vieneu(mode="audiocpp")
+    mock_cpp.assert_called_once()
+
 def test_factory_invalid_mode():
     # Factory with unknown mode should return None (match-case without default)
     # The current implementation of factory.py ends with the last case

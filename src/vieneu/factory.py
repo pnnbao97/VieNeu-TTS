@@ -9,7 +9,7 @@ def Vieneu(mode="v3turbo", **kwargs):
               via ONNX Runtime; GPU uses PyTorch. Works with the minimal install.
               Other modes need extras (``pip install vieneu[gpu]``):
               'standard' (CPU/GPU-GGUF), 'fast' (GPU-LMDeploy), 'turbo'/'turbo_gpu',
-              'remote' (API), 'xpu' (Intel GPU).
+              'remote' (API), 'xpu' (Intel GPU), 'cpp'/'audiocpp' (audio.cpp GGUF C++ runner).
         **kwargs: Arguments for chosen class
 
     Returns:
@@ -19,6 +19,9 @@ def Vieneu(mode="v3turbo", **kwargs):
         case "v3turbo":
             from .v3turbo import V3TurboVieNeuTTS
             return V3TurboVieNeuTTS(**kwargs)
+        case "cpp" | "audiocpp":
+            from .cpp import CppVieNeuTTS
+            return CppVieNeuTTS(**kwargs)
         case "remote" | "api":
             from .remote import RemoteVieNeuTTS
             return RemoteVieNeuTTS(**kwargs)
