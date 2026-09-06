@@ -8,6 +8,7 @@ required-environments = [
     "sys_platform == 'win32' and platform_machine == 'AMD64'",
     "sys_platform == 'linux' and platform_machine == 'x86_64'",
     "sys_platform == 'darwin' and platform_machine == 'arm64'",
+    "sys_platform == 'darwin' and platform_machine == 'x86_64'",
 ]
 override-dependencies = [
     "nvidia-nccl-cu12; sys_platform == 'linux'",
@@ -76,7 +77,8 @@ dependencies = [
     "tokenizers>=0.20", # phoneme tokenizer (torch-free)
     "huggingface_hub", # fetch ONNX / config / tokenizer / voices
     "PyYAML", # gradio config.yaml
-    "gradio==5.49.1", # web UI (vieneu-web)
+    "gradio>=5.49.1", # web UI (vieneu-web)
+    "librosa>=0.11.0",
     # NOTE: audio watermarking is opt-in via `pip install vieneu[watermark]` (resemble-perth,
     # needs torch/torchaudio). The PyPI package literally named `perth` is an unrelated
     # threading helper and must NOT be listed here (issue #191).
@@ -119,7 +121,7 @@ watermark = [
 # v3 Turbo on CUDA (PyTorch backend) — what the docker/Dockerfile.gpu image installs.
 # Install with: uv sync --extra cuda   (or: pip install vieneu[cuda])
 cuda = [
-    "torch; sys_platform != 'darwin' or platform_machine != 'x86_64'",
+    "torch",
     "transformers",
     "safetensors",
 ]
@@ -142,22 +144,11 @@ dev = [
     # Test-only deps for the GPU/standard/xpu backend tests (NOT in the runtime
     # install — `pip install vieneu` stays minimal/torch-free). CI installs the dev
     # group, so these tests can import librosa/transformers/neucodec-based engines.
+    "librosa>=0.11.0",
     "transformers",
-    "neucodec>=0.0.4; sys_platform != 'darwin' or platform_machine != 'x86_64'",
+    "neucodec>=0.0.4",
 ]
-gpu = [
-    "neucodec>=0.0.4; sys_platform != 'darwin' or platform_machine != 'x86_64'",
-    "torch==2.8.0",
-    "torchaudio==2.8.0",
-    "datasets>=3.2.0",
-    "lmdeploy; sys_platform != 'darwin'",
-    "triton-windows; sys_platform == 'win32'",
-    "triton; sys_platform == 'linux'",
-    "transformers; sys_platform == 'darwin'",
-    "accelerate; sys_platform == 'darwin'",
-    "trafilatura>=2.0.0",
-    "llama-cpp-python==0.3.16; sys_platform != 'darwin' or platform_machine != 'x86_64'",
-]
+
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]   # finetune/tests runs in its own process (see tests/test_finetune_lora.py)
