@@ -1821,28 +1821,6 @@ with gr.Blocks(theme=theme, css=css, title="VieNeu-TTS", head=head_html) as demo
         <span class="header-icon">🦜</span>
         <span class="gradient-text">VieNeu-TTS Studio</span>
     </h1>
-    <div class="model-card-content">
-        <div class="model-card-item">
-            <strong>Models:</strong>
-            <a href="https://huggingface.co/pnnbao-ump/VieNeu-TTS" target="_blank" class="model-card-link">VieNeu-TTS</a>
-            <span>•</span>
-            <a href="https://huggingface.co/pnnbao-ump/VieNeu-TTS-v2" target="_blank" class="model-card-link">VieNeu-TTS-v2</a>
-            <span>•</span>
-            <a href="https://huggingface.co/pnnbao-ump/VieNeu-TTS-v3-Turbo" target="_blank" class="model-card-link">VieNeu-TTS-v3-Turbo</a>
-        </div>
-        <div class="model-card-item">
-            <strong>Repository:</strong>
-            <a href="https://github.com/pnnbao97/VieNeu-TTS" target="_blank" class="model-card-link">GitHub</a>
-        </div>
-        <div class="model-card-item">
-            <strong>Tác giả:</strong>
-            <a href="https://www.facebook.com/pnnbao97" target="_blank" class="model-card-link">Phạm Nguyễn Ngọc Bảo</a>
-        </div>
-        <div class="model-card-item">
-            <strong>Discord:</strong>
-            <a href="https://discord.gg/yJt8kzjzWZ" target="_blank" class="model-card-link">Tham gia cộng đồng</a>
-        </div>
-    </div>
 </div>
         """)
         
@@ -1923,43 +1901,6 @@ with gr.Blocks(theme=theme, css=css, title="VieNeu-TTS", head=head_html) as demo
                     info="Tick nếu bạn dùng GPU để tăng tốc độ tổng hợp đáng kể.",
                     visible="v3" not in default_backbone.lower(),  # v3 Turbo (PyTorch) không dùng LMDeploy
                 )
-            
-            
-            gr.Markdown("""
-            💡 **Sử dụng Custom Model:** Chọn "Custom Model" để tải LoRA adapter hoặc bất kỳ model nào được finetune từ **VieNeu-TTS** hoặc **VieNeu-TTS-0.3B**.
-            """)
-            
-            gr.HTML("""
-            <div class="warning-banner">
-                <div class="warning-banner-title">
-                    🦜 Gợi ý tối ưu hiệu năng
-                </div>
-                <div class="warning-banner-grid">
-                    <div class="warning-banner-item">
-                        <strong>🐆 Hệ máy GPU</strong>
-                        <div class="warning-banner-content">
-                            <b>VieNeu-TTS-v3-Turbo</b> — 48kHz, giọng mặc định ổn định, Voice Cloning và hỗ trợ các tag cảm xúc `[cười]` `[hắng giọng]` `[thở dài]` (riêng tag cảm xúc vẫn đang thử nghiệm). Nếu gặp lỗi hãy báo với chúng tôi tại: https://discord.com/invite/yJt8kzjzWZ.
-                        </div>
-                    </div>
-                    <div class="warning-banner-item" style="background: #dcfce7; border-color: #86efac;">
-                        <strong style="color: #15803d;">🐢 Hệ máy CPU</strong>
-                        <div class="warning-banner-content" style="color: #166534;">
-                            Máy <b>CPU</b> dùng bản mặc định <b>VieNeu-TTS-v3-Turbo</b> (ONNX, chất lượng tối đa). Bản <b>VieNeu-TTS-v3-Nano (preview)</b> chạy rất nhanh, dành cho edge device như Android hoặc CPU yếu, nhưng <b>chất lượng kém hơn nhiều</b> so với Turbo (nhất là tiếng Anh, song ngữ) — chỉ dùng khi thực sự cần tốc độ hoặc deploy trên điện thoại. Nano đang trong quá trình thử nghiệm nên còn nhiều thiếu sót.
-                        </div>
-                    </div>
-                </div>
-                <div style="margin-top: 12px; font-size: 0.85rem; color: #92400e; border-top: 1px dashed #fcd34d; padding-top: 8px;">
-                    💡 <b>Mẹo:</b> Nếu máy bạn có GPU mà không thấy các phiên bản GPU hãy xem lại cách cài đặt uv sync --group gpu
-                </div>
-            </div>
-            """)
-
-            gr.Markdown(
-                "🆕 **VieNeu-TTS-v3-Turbo** đã **phát hành chính thức** — "
-                "48kHz, giọng mặc định ổn định, **hỗ trợ Voice Cloning** (tính năng clone chỉ có từ **v3** trở lên; v1/v2 không hỗ trợ).\n\n"
-                "🎭 v3 Turbo **hỗ trợ các tag cảm xúc** `[cười]` `[hắng giọng]` `[thở dài]` "
-                "(chèn trực tiếp vào văn bản) — riêng tính năng này vẫn **đang thử nghiệm**."
-            )
 
             btn_load = gr.Button("🔄 Tải Model", variant="primary")
             model_status = gr.Markdown("⏳ Chưa tải model.")

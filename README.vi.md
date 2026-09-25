@@ -1,4 +1,9 @@
 # 🦜 VieNeu-TTS
+# các lệnh chạy dự án
+ - phiên bản web: uv run vieneu-web
+ - phiên bản stream: uv run vieneu-stream
+
+ - lệnh chạy server mặc định địa chỉ 8000: uv run python -m apps.openai_speech
 
 [![Awesome](https://img.shields.io/badge/Awesome-NLP-green?logo=github)](https://github.com/keon/awesome-nlp)
 [![Discord](https://img.shields.io/badge/Discord-Join%20Us-5865F2?logo=discord&logoColor=white)](https://discord.gg/yJt8kzjzWZ)
