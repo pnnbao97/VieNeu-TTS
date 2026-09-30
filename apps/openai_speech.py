@@ -66,9 +66,9 @@ import threading
 import time
 import uuid
 import wave
-import weakref
 from typing import Any, Iterator, Optional
 
+import anyio
 import numpy as np
 import uvicorn
 from fastapi import Depends, FastAPI, File, Form, Header, HTTPException, Request, UploadFile
@@ -172,8 +172,8 @@ class Engine:
 
 class _Slot:
     """One ``Engine`` stream slot, released exactly once: by the stream's own
-    ``finally``, or — when the body is never iterated because the client left
-    while queued — when the dropped body is garbage-collected."""
+    ``finally``, or by ``_SpeechResponse`` when the response ends without the
+    body ever being iterated (client gone while queued)."""
 
     def __init__(self, eng: Engine):
         self._eng = eng
@@ -185,6 +185,38 @@ class _Slot:
             held, self._held = self._held, False
         if held:
             self._eng.release()
+
+
+class _SpeechResponse(StreamingResponse):
+    """A ``StreamingResponse`` that closes its body the moment the response ends
+    — done, failed or client gone — instead of leaving that to the garbage
+    collector. Starlette drops a sync body without closing it when the client
+    disconnects, and the abandoned generators sit in a reference cycle, so
+    their ``finally`` (freeing the slot, cancelling the scheduler row) could
+    wait minutes on an idle server; with every slot stuck, all requests got 429.
+    """
+
+    def __init__(self, body: Iterator[bytes], slot: _Slot, **kw: Any):
+        super().__init__(body, **kw)
+        self._body = body
+        self._slot = slot
+
+    async def __call__(self, scope, receive, send) -> None:
+        try:
+            await super().__call__(scope, receive, send)
+        finally:
+            # close() runs the generators' finally blocks, so keep it off the
+            # event loop. By now no thread is inside the body: anyio waits for
+            # a cancelled to_thread call to return.
+            await anyio.to_thread.run_sync(self._close)
+
+    def _close(self) -> None:
+        try:
+            self._body.close()
+        except Exception:   # noqa: BLE001 — the slot must be freed regardless
+            log.exception("closing the speech body failed")
+        finally:
+            self._slot.release()
 
 
 ENGINE: Optional[Engine] = None
@@ -296,12 +328,13 @@ def _speech_chunks(eng: Engine, req: SpeechRequest, rid: str, slot: _Slot) -> It
     first = None
     emitted = 0
     rs = _Resampler(req.sample_rate)
+    audio = eng.tts.infer_stream(
+        req.input, voice=req.voice or None, apply_watermark=eng.watermark,
+        temperature=req.temperature, top_k=req.top_k, top_p=req.top_p,
+        repetition_penalty=req.repetition_penalty, max_chars=req.max_chars,
+    )
     try:
-        for chunk in eng.tts.infer_stream(
-            req.input, voice=req.voice or None, apply_watermark=eng.watermark,
-            temperature=req.temperature, top_k=req.top_k, top_p=req.top_p,
-            repetition_penalty=req.repetition_penalty, max_chars=req.max_chars,
-        ):
+        for chunk in audio:
             if chunk is None or len(chunk) == 0:
                 continue
             if first is None:
@@ -314,6 +347,7 @@ def _speech_chunks(eng: Engine, req: SpeechRequest, rid: str, slot: _Slot) -> It
         if len(tail):
             yield tail
     finally:
+        audio.close()   # cancels the scheduler rows now, not when collected
         slot.release()
         total = time.perf_counter() - t0
         audio_s = emitted / SAMPLE_RATE
@@ -323,23 +357,29 @@ def _speech_chunks(eng: Engine, req: SpeechRequest, rid: str, slot: _Slot) -> It
 
 
 def _audio_body(chunks: Iterator[np.ndarray], fmt: str, rate: int) -> Iterator[bytes]:
-    if fmt == "wav":
-        yield _wav_header(rate)
-    for c in chunks:
-        yield _pcm16(c)
+    try:
+        if fmt == "wav":
+            yield _wav_header(rate)
+        for c in chunks:
+            yield _pcm16(c)
+    finally:
+        chunks.close()
 
 
 def _sse_body(chunks: Iterator[np.ndarray], fmt: str, rate: int) -> Iterator[bytes]:
     def ev(obj: dict) -> bytes:
         return f"data: {json.dumps(obj, ensure_ascii=False)}\n\n".encode("utf-8")
     n = 0
-    if fmt == "wav":
-        yield ev({"type": "speech.audio.delta", "audio": base64.b64encode(_wav_header(rate)).decode()})
-    for c in chunks:
-        n += len(c)
-        yield ev({"type": "speech.audio.delta", "audio": base64.b64encode(_pcm16(c)).decode()})
-    yield ev({"type": "speech.audio.done",
-              "usage": {"output_samples": n, "sample_rate": rate, "seconds": round(n / rate, 3)}})
+    try:
+        if fmt == "wav":
+            yield ev({"type": "speech.audio.delta", "audio": base64.b64encode(_wav_header(rate)).decode()})
+        for c in chunks:
+            n += len(c)
+            yield ev({"type": "speech.audio.delta", "audio": base64.b64encode(_pcm16(c)).decode()})
+        yield ev({"type": "speech.audio.done",
+                  "usage": {"output_samples": n, "sample_rate": rate, "seconds": round(n / rate, 3)}})
+    finally:
+        chunks.close()
 
 
 @app.post("/v1/audio/speech", dependencies=[Depends(_auth)])
@@ -361,18 +401,15 @@ def speech(req: SpeechRequest):
     eng.acquire()   # 429 if the server is full; released when the stream ends
     slot = _Slot(eng)
     chunks = _speech_chunks(eng, req, rid, slot)
-    # A generator that never starts never runs its finally: if the client is gone
-    # before the body is read, the slot is freed when the body is dropped.
-    weakref.finalize(chunks, slot.release)
     headers = {"X-Request-Id": rid, "X-Sample-Rate": str(req.sample_rate), "Cache-Control": "no-store"}
     ignored = [k for k in ("speed", "instructions") if getattr(req, k) is not None]
     if ignored:
         headers["X-VieNeu-Ignored"] = ",".join(ignored)
     if req.stream_format == "sse":
-        return StreamingResponse(_sse_body(chunks, fmt, req.sample_rate),
-                                 media_type="text/event-stream", headers=headers)
+        return _SpeechResponse(_sse_body(chunks, fmt, req.sample_rate), slot,
+                               media_type="text/event-stream", headers=headers)
     media = "audio/wav" if fmt == "wav" else "audio/pcm"
-    return StreamingResponse(_audio_body(chunks, fmt, req.sample_rate), media_type=media, headers=headers)
+    return _SpeechResponse(_audio_body(chunks, fmt, req.sample_rate), slot, media_type=media, headers=headers)
 
 
 # ── discovery ────────────────────────────────────────────────────────────────
