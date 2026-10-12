@@ -1,6 +1,7 @@
 """apps/openai_speech.py with a stand-in model: request limits, voice enrolment,
 stream slots, health, auth and the listening address. ``Engine.__init__`` runs
 for real."""
+import asyncio
 import gc
 import logging
 from types import SimpleNamespace
@@ -20,6 +21,8 @@ class FakeTTS:
         self._voice_aliases = {"Minh Quân": "Hải Đăng"}
         self.stream_calls = []
         self.enrolled = []
+        self.stream_len = 1        # chunks per stream
+        self.streams_closed = 0    # streams whose generator ran its finally
 
     def resolve_voice_name(self, name):
         if name in self._preset_voices:
@@ -29,7 +32,11 @@ class FakeTTS:
 
     def infer_stream(self, text, **kw):
         self.stream_calls.append(kw)
-        yield np.zeros(4800, dtype=np.float32)
+        try:
+            for _ in range(self.stream_len):
+                yield np.zeros(4800, dtype=np.float32)
+        finally:
+            self.streams_closed += 1
 
     def add_voice(self, name, path, **kw):
         self.enrolled.append(name)
@@ -66,17 +73,49 @@ def test_valid_request_streams_wav(client, eng):
     assert eng.active == 0                     # the stream slot was given back, once
 
 
-def test_unread_response_still_frees_its_slot(eng):
-    # The client left while its request was queued: the body is never iterated,
-    # so the stream's own finally never runs. On CPU there is a single slot, and
-    # losing it meant 429 for every later request.
-    resp = api.speech(api.SpeechRequest(input="Xin chào."))
-    assert eng.active == 1
-    del resp
-    gc.collect()
-    assert eng.active == 0
-    assert eng._gate.acquire(blocking=False)
-    eng._gate.release()
+def _serve_until_disconnect(resp, chunks_before_leaving):
+    """Run ``resp`` as an ASGI app for a client that leaves after receiving
+    ``chunks_before_leaving`` body chunks (0: before the body starts)."""
+    async def run():
+        left = asyncio.Event()
+        sent = 0
+
+        async def receive():
+            await left.wait()
+            return {"type": "http.disconnect"}
+
+        async def send(msg):
+            nonlocal sent
+            if msg["type"] == "http.response.body" and msg.get("body"):
+                sent += 1
+            if sent >= chunks_before_leaving:
+                left.set()
+
+        if chunks_before_leaving == 0:
+            left.set()
+        await resp({"type": "http", "asgi": {"version": "3.0"}, "method": "POST"}, receive, send)
+    asyncio.run(run())
+
+
+@pytest.mark.parametrize("chunks_before_leaving", [0, 2])   # queued / mid-stream
+def test_client_gone_frees_slot_without_gc(eng, chunks_before_leaving):
+    # Starlette drops a disconnected sync body without closing it, and the
+    # abandoned generators sit in a reference cycle: on an idle server their
+    # finally could wait minutes for the collector, with every slot taken (429s).
+    eng.tts.stream_len = 1000
+    gc.disable()
+    try:
+        resp = api.speech(api.SpeechRequest(input="Xin chào."))
+        assert eng.active == 1
+        _serve_until_disconnect(resp, chunks_before_leaving)
+        assert eng.active == 0
+        assert eng._gate.acquire(blocking=False)
+        eng._gate.release()
+        if chunks_before_leaving:
+            # The model's stream was closed too (on GPU: its scheduler row cancelled).
+            assert eng.tts.streams_closed == 2      # warm-up + this one
+    finally:
+        gc.enable()
 
 
 @pytest.mark.parametrize("field, value", [
