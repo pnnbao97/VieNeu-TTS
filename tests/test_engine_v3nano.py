@@ -140,7 +140,7 @@ def test_tts_presets_infer_stream_batch(bundle):
     with patch("onnxruntime.InferenceSession", _FakeSession), \
          patch.object(V3NanoVieNeuTTS, "_load_nano_voices", _fake_load_voices), \
          patch("vieneu.v3nano.phonemize_text_with_emotions", lambda t: "a b."), \
-         patch("vieneu.v3nano.normalize_to_chunks_v3_with_gaps", lambda t, max_chars=140: (["x", "y"], ["sentence"])):
+         patch("vieneu_utils.phonemize_text.normalize_to_chunks_v3_with_gaps", lambda t, max_chars=140: (["x", "y"], ["sentence"])):
         tts = V3NanoVieNeuTTS(onnx_dir=str(bundle))
         assert tts.sample_rate == 24000 and tts.backend == "onnx"
         assert [v for _, v in tts.list_preset_voices()] == ["V1", "V2"]
@@ -183,7 +183,7 @@ def test_tts_voice_cloning_paths(bundle, ref_wav, tmp_path):
     with patch("onnxruntime.InferenceSession", _FakeSession), \
          patch.object(V3NanoVieNeuTTS, "_load_nano_voices", _fake_load_voices), \
          patch("vieneu.v3nano.phonemize_text_with_emotions", lambda t: "a b."), \
-         patch("vieneu.v3nano.normalize_to_chunks_v3_with_gaps", lambda t, max_chars=140: (["x"], [])):
+         patch("vieneu_utils.phonemize_text.normalize_to_chunks_v3_with_gaps", lambda t, max_chars=140: (["x"], [])):
         tts = V3NanoVieNeuTTS(onnx_dir=str(bundle))
         spk, style = tts.encode_reference(ref_wav, denoise=False)
         assert spk.shape == (192,) and style.shape == (S, C)

@@ -37,7 +37,7 @@ import numpy as np
 from .base import BaseVieneuTTS
 from vieneu_utils.phonemize_text import (
     phonemize_text_with_emotions,
-    normalize_to_chunks_v3_with_gaps,
+    plan_v3_chunks,
 )
 from vieneu_utils.core_utils import (
     join_audio_chunks, gaps_to_silence, pause_pad_samples, trim_and_fade as _trim_and_fade,
@@ -446,13 +446,14 @@ class V3NanoVieNeuTTS(BaseVieneuTTS):
         **kwargs: Any,
     ) -> np.ndarray:
         """Synthesize ``text`` into one 24 kHz waveform with a preset ``voice``."""
+        chunks, gaps, explicit_pauses = plan_v3_chunks(text, max_chars=max_chars)
         spk, st = self._resolve_voice(voice, ref_audio, denoise)
-        chunks, gaps = normalize_to_chunks_v3_with_gaps(text, max_chars=max_chars)
         if not chunks:
-            return np.array([], dtype=np.float32)
+            return join_audio_chunks([], self.sample_rate, explicit_pauses_ms=explicit_pauses)
         wavs = self._chunk_wavs(chunks, spk, st, steps or self.default_steps,
                                 self.default_cfg if cfg is None else cfg, sway, speed, seed)
-        wav = join_audio_chunks(wavs, self.sample_rate, silence_ps=gaps_to_silence(gaps))
+        wav = join_audio_chunks(wavs, self.sample_rate, silence_ps=gaps_to_silence(gaps),
+                                explicit_pauses_ms=explicit_pauses)
         return self._apply_watermark(wav) if apply_watermark else wav
 
     def infer_stream(
@@ -472,11 +473,19 @@ class V3NanoVieNeuTTS(BaseVieneuTTS):
     ) -> Generator[np.ndarray, None, None]:
         """Chunk-level streaming: yields each finished chunk (no frame-level streaming —
         the flow model generates a whole chunk at once)."""
+        chunks, gaps, explicit_pauses = plan_v3_chunks(text, max_chars=max_chars)
         spk, st = self._resolve_voice(voice, ref_audio, denoise)
-        chunks, gaps = normalize_to_chunks_v3_with_gaps(text, max_chars=max_chars)
+        sr = self.sample_rate
+        if not chunks:
+            if explicit_pauses:
+                yield np.zeros(explicit_pauses[0] * sr // 1000, dtype=np.float32)
+            return
         pauses = gaps_to_silence(gaps)
         prev: Optional[np.ndarray] = None
         for ci, chunk in enumerate(chunks):
+            if ci in explicit_pauses:
+                yield np.zeros(explicit_pauses[ci] * sr // 1000, dtype=np.float32)
+                prev = None
             ph = phonemize_text_with_emotions(chunk)
             wav = self.engine.infer(ph, spk, st, steps=steps or self.default_steps,
                                     cfg=self.default_cfg if cfg is None else cfg, sway=sway, speed=speed)
@@ -484,11 +493,13 @@ class V3NanoVieNeuTTS(BaseVieneuTTS):
                 continue
             if prev is not None:
                 # Cùng khoảng nghỉ theo ranh giới như join_audio_chunks (engine đã trim mép).
-                pad = pause_pad_samples(prev, wav, self.sample_rate, pauses[ci - 1])
+                pad = pause_pad_samples(prev, wav, sr, pauses[ci - 1])
                 if pad > 0:
                     yield np.zeros(pad, dtype=np.float32)
             prev = wav
             yield self._apply_watermark(wav) if apply_watermark else wav
+        if len(chunks) in explicit_pauses:
+            yield np.zeros(explicit_pauses[len(chunks)] * sr // 1000, dtype=np.float32)
 
     def infer_batch(
         self,

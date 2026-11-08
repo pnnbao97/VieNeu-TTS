@@ -274,6 +274,13 @@ Inline tags are supported anywhere in the text: `[cười]` (chuckle), `[thở d
 audio = vieneu.infer("Nghe hay quá đi [cười]. Để mình nói tiếp [hắng giọng].", voice="Hải Đăng")
 ```
 
+### Pause tags
+
+Use `[silent 200ms]`, `[silent 2s]` or `[silent 0.5s]` in text on v3 Turbo and v3 Nano.
+Each tag inserts that duration of silence in place of the automatic gap at that
+boundary. Silence already present in the generated speech is kept. Adjacent tags
+add together, up to 60 seconds of tagged silence per input text.
+
 ### Voice cloning
 
 Clone any voice from a short reference clip. The clip is cleaned up automatically

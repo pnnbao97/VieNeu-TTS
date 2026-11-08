@@ -21,7 +21,7 @@ import threading
 import yaml
 import uuid
 from vieneu_utils.core_utils import join_audio_chunks, env_bool, get_silence_duration_v2, gaps_to_silence, trust_remote_code_enabled
-from vieneu_utils.phonemize_text import phonemize_to_chunks, normalize_to_chunks, normalize_to_chunks_v3, normalize_to_chunks_v3_with_gaps
+from vieneu_utils.phonemize_text import phonemize_to_chunks, normalize_to_chunks, plan_v3_chunks, split_silence_tags
 # PuncNormalizer = sea_g2p.Normalizer luôn bật punc_norm=True.
 from vieneu_utils.phonemize_text import PuncNormalizer as Normalizer
 import gc
@@ -976,7 +976,7 @@ def synthesize_speech(text: str, voice_choice: str, custom_audio, custom_text: s
 
                 # Chia chunk theo TEXT đã normalize (giống v2-gpu, không vụn), giữ
                 # inline cues; phonemize TỪNG chunk khi dựng request.
-                v3_chunks, v3_gaps = normalize_to_chunks_v3_with_gaps(raw_text, max_chars=max_chars_chunk)
+                v3_chunks, v3_gaps, v3_pauses = plan_v3_chunks(raw_text, max_chars=max_chars_chunk)
                 v3_bs = max(1, int(max_batch_size_run)) if use_batch else 1
                 v3_engine_dev = getattr(getattr(tts, "engine", None), "device", None)
                 v3_can_batch = (
@@ -1006,7 +1006,6 @@ def synthesize_speech(text: str, voice_choice: str, custom_audio, custom_text: s
                         for j, w in zip(idxs, tts._v3_batch_engine.generate_batch(
                                 reqs, temperature=temperature, max_new_frames=300)):
                             v3_wavs[j] = w
-                    wav = join_audio_chunks(v3_wavs, sr=sr_v3, silence_ps=gaps_to_silence(v3_gaps))
                 else:
                     # CPU (ONNX) hoặc GPU khi tắt batch: xử lý TUẦN TỰ từng đoạn.
                     # Gọi engine 1 lần / đoạn (giống nhánh batch nhưng tuần tự) để có
@@ -1045,7 +1044,8 @@ def synthesize_speech(text: str, voice_choice: str, custom_audio, custom_text: s
                                 f"(ước tính còn lại: {_format_duration(eta)})... "
                                 f"đang xử lý đoạn {done + 1}/{total_v3}"
                             )
-                    wav = join_audio_chunks(v3_wavs, sr=sr_v3, silence_ps=gaps_to_silence(v3_gaps))
+                wav = join_audio_chunks(v3_wavs, sr=sr_v3, silence_ps=gaps_to_silence(v3_gaps),
+                                        explicit_pauses_ms=v3_pauses)
             except Exception as e:
                 yield None, f"❌ Lỗi tổng hợp ({v3_label}): {str(e)}"
                 return
@@ -1414,13 +1414,20 @@ def _synthesize_conversation_v3(lines, mapping, temperature, max_chars_chunk, si
     global tts
     from collections import defaultdict
     from vieneu_utils.core_utils import join_audio_chunks, gaps_to_silence
-    from vieneu_utils.phonemize_text import phonemize_text_with_emotions, normalize_to_chunks_v3_with_gaps
+    from vieneu_utils.phonemize_text import phonemize_text_with_emotions
     # NOTE: KHÔNG import vieneu.v3_turbo_serve ở đây — module đó import torch ở cấp
     # module, nên trên bản cài CPU/macOS không-torch (ONNX) sẽ lỗi "No module named
     # 'torch'". Chỉ import bên trong nhánh CUDA bên dưới (nơi thực sự cần batch engine).
 
     sr = getattr(tts, "sample_rate", 48000)
     t0 = time.time()
+
+    for li, line in enumerate(lines):
+        try:
+            split_silence_tags(line['text'])
+        except ValueError as e:
+            yield None, f"❌ Tag khoảng nghỉ ở câu {li + 1}: {e}"
+            return
 
     # Resolve each speaker → (speaker_emb, ref_codes), cached per speaker.
     def _voice_for(spk_name):
@@ -1475,6 +1482,7 @@ def _synthesize_conversation_v3(lines, mapping, temperature, max_chars_chunk, si
     voice_cache = {}
     reqs, req_line = [], []
     line_gaps = {}
+    line_pauses = {}
     for li, line in enumerate(lines):
         key = line['speaker'].lower()
         if key not in voice_cache:
@@ -1482,18 +1490,14 @@ def _synthesize_conversation_v3(lines, mapping, temperature, max_chars_chunk, si
         spk_emb, ref_codes = voice_cache[key]
         # Chia chunk theo TEXT đã normalize (giống v2-gpu), giữ inline cues, rồi
         # phonemize từng chunk. Hội thoại luôn dùng phong cách Tự nhiên.
-        line_chunks, line_gaps[li] = normalize_to_chunks_v3_with_gaps(line['text'], max_chars=max_chars_chunk)
+        line_chunks, line_gaps[li], line_pauses[li] = plan_v3_chunks(line['text'], max_chars=max_chars_chunk)
         for chunk in line_chunks:
             reqs.append({"phonemes": phonemize_text_with_emotions(chunk),
                          "speaker_emb": spk_emb, "ref_codes": ref_codes,
                          "use_ref_codes": True})
             req_line.append(li)
 
-    if not reqs:
-        yield None, "❌ Không có lời thoại để tổng hợp."
-        return
-
-    if getattr(tts, "_v3_batch_engine", None) is None:
+    if reqs and getattr(tts, "_v3_batch_engine", None) is None:
         # Chỉ tới đây khi chạy trên CUDA → torch chắc chắn có sẵn.
         from vieneu.v3_turbo_serve import V3TurboBatchEngine
         tts._v3_batch_engine = V3TurboBatchEngine(tts.engine)
@@ -1521,7 +1525,8 @@ def _synthesize_conversation_v3(lines, mapping, temperature, max_chars_chunk, si
 
     all_wavs = []
     for li in range(len(lines)):
-        lw = join_audio_chunks(by_line[li], sr=sr, silence_ps=gaps_to_silence(line_gaps.get(li, []))) if by_line[li] else None
+        lw = join_audio_chunks(by_line[li], sr=sr, silence_ps=gaps_to_silence(line_gaps[li]),
+                               explicit_pauses_ms=line_pauses[li])
         if lw is None or len(lw) == 0:
             continue
         all_wavs.append(lw)
@@ -1962,7 +1967,8 @@ with gr.Blocks(theme=theme, css=css, title="VieNeu-TTS", head=head_html) as demo
                 "🆕 **VieNeu-TTS-v3-Turbo** đã **phát hành chính thức** — "
                 "48kHz, giọng mặc định ổn định, **hỗ trợ Voice Cloning** (tính năng clone chỉ có từ **v3** trở lên; v1/v2 không hỗ trợ).\n\n"
                 "🎭 v3 Turbo **hỗ trợ các tag cảm xúc** `[cười]` `[hắng giọng]` `[thở dài]` "
-                "(chèn trực tiếp vào văn bản) — riêng tính năng này vẫn **đang thử nghiệm**."
+                "(chèn trực tiếp vào văn bản) — riêng tính năng này vẫn **đang thử nghiệm**.\n\n"
+                "⏸️ Thêm `[silent 200ms]` hoặc `[silent 2s]` vào văn bản để đặt khoảng nghỉ (v3 Turbo và v3 Nano)."
             )
 
             btn_load = gr.Button("🔄 Tải Model", variant="primary")

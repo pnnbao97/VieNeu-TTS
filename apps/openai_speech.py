@@ -78,6 +78,7 @@ from fastapi.responses import JSONResponse, StreamingResponse
 from pydantic import BaseModel, Field
 
 from vieneu import Vieneu
+from vieneu_utils.phonemize_text import split_silence_tags
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
 log = logging.getLogger("vieneu.api")
@@ -393,6 +394,10 @@ def speech(req: SpeechRequest):
         raise HTTPException(400, "stream_format must be 'audio' or 'sse'")
     if req.sample_rate not in RATES:
         raise HTTPException(400, f"sample_rate must be one of {RATES}")
+    try:
+        split_silence_tags(req.input)
+    except ValueError as exc:
+        raise HTTPException(400, str(exc)) from exc
     if req.voice and eng.tts.resolve_voice_name(req.voice) is None:
         raise HTTPException(400, f"unknown voice '{req.voice}'; see GET /v1/voices")
     if eng.stream_error() is not None:

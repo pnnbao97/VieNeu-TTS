@@ -233,6 +233,8 @@ def join_audio_chunks(
     silence_p: float = 0.0,
     crossfade_p: float = 0.0,
     silence_ps: Optional[List[float]] = None,
+    *,
+    explicit_pauses_ms: Optional[dict[int, int]] = None,
 ) -> np.ndarray:
     """Ghép các chunk audio.
 
@@ -244,21 +246,31 @@ def join_audio_chunks(
     ``silence_ps`` thì ``silence_p``/``crossfade_p`` bị bỏ qua; khe thiếu giá trị
     nghỉ 0 (nối thẳng).
 
+    ``explicit_pauses_ms[i]`` chèn đúng số mẫu im lặng trước chunk ``i``, thay
+    cho khoảng nghỉ tự động. Index ``len(chunks)`` là khoảng nghỉ cuối audio.
+
     Không có ``silence_ps`` (đường v1/v2): chèn ``silence_p`` giây zeros, hoặc
     crossfade ``crossfade_p`` giây, hoặc nối thẳng — giữ nguyên như cũ.
     """
-    if not chunks:
-        return np.array([], dtype=np.float32)
-
-    if silence_ps is not None:
-        parts: List[np.ndarray] = [chunks[0]]
-        for i in range(1, len(chunks)):
-            pause_s = silence_ps[i - 1] if i - 1 < len(silence_ps) else 0.0
-            pad = pause_pad_samples(chunks[i - 1], chunks[i], sr, pause_s)
+    if silence_ps is not None or explicit_pauses_ms:
+        pauses = explicit_pauses_ms or {}
+        parts: List[np.ndarray] = []
+        for i, chunk in enumerate(chunks):
+            pad = pauses.get(i, 0) * sr // 1000
+            if i not in pauses and silence_ps is not None and 0 < i <= len(silence_ps):
+                pad = pause_pad_samples(chunks[i - 1], chunk, sr, silence_ps[i - 1])
             if pad > 0:
                 parts.append(np.zeros(pad, dtype=np.float32))
-            parts.append(chunks[i])
-        return np.concatenate(parts) if len(parts) > 1 else parts[0]
+            parts.append(chunk)
+        tail = pauses.get(len(chunks), 0) * sr // 1000
+        if tail:
+            parts.append(np.zeros(tail, dtype=np.float32))
+        if parts:
+            return np.concatenate(parts) if len(parts) > 1 else parts[0]
+        return np.array([], dtype=np.float32)
+
+    if not chunks:
+        return np.array([], dtype=np.float32)
 
     if len(chunks) == 1:
         return chunks[0]

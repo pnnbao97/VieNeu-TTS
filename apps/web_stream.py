@@ -19,12 +19,13 @@ from pathlib import Path
 from typing import Optional
 
 import numpy as np
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.responses import FileResponse, StreamingResponse, Response
 from pydantic import BaseModel
 import uvicorn
 
 from vieneu import Vieneu
+from vieneu_utils.phonemize_text import split_silence_tags
 
 SAMPLE_RATE = 48_000
 app = FastAPI()
@@ -90,6 +91,11 @@ def _pcm16(audio_f32: np.ndarray) -> bytes:
 @app.get("/stream")
 async def stream(text: str, voice_id: Optional[str] = None):
     """Stream 48 kHz WAV: header (nframes rất lớn để phát liên tục) rồi PCM16 theo chunk."""
+    try:
+        split_silence_tags(text)
+    except ValueError as exc:
+        raise HTTPException(400, str(exc)) from exc
+
     def gen():
         # WAV header 48 kHz mono; nframes huge → browser phát liền khi data tới.
         h = io.BytesIO()

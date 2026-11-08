@@ -392,6 +392,60 @@ def normalize_to_chunks_v3_with_gaps(
     return _merge_short_chunks(chunks, gaps, min_chunk_chars)
 
 
+_SILENT_TAG_RE = re.compile(r"\[silent\b([^\[\]\r\n]*)\]", re.IGNORECASE)
+_SILENT_DURATION_RE = re.compile(
+    r"(?:([0-9]{1,5})\s*ms|([0-9]{1,2}(?:\.[0-9]{1,3})?)\s*s)", re.IGNORECASE
+)
+_MAX_SILENT_MS = 60_000
+
+
+def split_silence_tags(text: str) -> tuple[list[str], list[int]]:
+    """Split raw text around ``[silent …]`` tags and return their durations in ms."""
+    parts = _SILENT_TAG_RE.split(text or "")
+    durations = []
+    total_ms = 0
+    for raw in parts[1::2]:
+        match = _SILENT_DURATION_RE.fullmatch(raw.strip())
+        if match is None:
+            raise ValueError("Invalid pause tag. Use [silent 200ms] or [silent 2s].")
+        ms, seconds = match.groups()
+        duration_ms = int(ms) if ms is not None else round(float(seconds) * 1000)
+        total_ms += duration_ms
+        if duration_ms == 0 or total_ms > _MAX_SILENT_MS:
+            raise ValueError("Pause tags must be at least 1ms each and at most 60s in total.")
+        durations.append(duration_ms)
+    return parts[::2], durations
+
+
+def plan_v3_chunks(text: str, max_chars: int = 256) -> tuple[list[str], list[str], dict[int, int]]:
+    """Plan speech chunks, default gaps and explicit silence before each chunk index.
+
+    An explicit pause at index ``len(chunks)`` goes after the last chunk. Splitting
+    before normalization keeps durations out of the phonemes and prevents short
+    chunks from being merged across an explicit pause.
+    """
+    parts, durations = split_silence_tags(text)
+    if not durations:
+        chunks, gaps = normalize_to_chunks_v3_with_gaps(text, max_chars=max_chars)
+        return chunks, gaps, {}
+
+    chunks, gaps, pauses = [], [], {}
+    for i, part in enumerate(parts):
+        if i > 0:
+            index = len(chunks)
+            pauses[index] = pauses.get(index, 0) + durations[i - 1]
+        # Ignore empty and punctuation-only fragments between or after tags.
+        if not re.search(r"\w", part):
+            continue
+        section, section_gaps = normalize_to_chunks_v3_with_gaps(part, max_chars=max_chars)
+        if section:
+            if chunks:
+                gaps.append("sentence")  # replaced by the explicit pause at this boundary
+            chunks.extend(section)
+            gaps.extend(section_gaps)
+    return chunks, gaps, pauses
+
+
 def phonemize_to_chunks(
     text: str,
     max_chars: int = 256,

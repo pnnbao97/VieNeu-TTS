@@ -280,6 +280,18 @@ audio = vieneu.infer("Nghe hay quá đi [cười]. Để mình nói tiếp [hắ
 > [!TIP]
 > Temperature ~0.8 ổn định nhất.
 
+### Tag khoảng nghỉ
+
+Trên v3 Turbo và v3 Nano, nhập trực tiếp vào ô văn bản hoặc truyền qua SDK.
+
+```text
+Xin chào! [silent 200ms] Mình sẽ nói tiếp [cười]. [silent 2s] Cảm ơn bạn đã lắng nghe.
+```
+
+Dùng mili giây (`200ms`) hoặc giây (`2s`, `0.5s`). Tag chèn đúng lượng im lặng
+đã đặt thay cho khoảng nghỉ tự động tại điểm nối. Mép audio do model tạo vẫn
+được giữ nguyên. Các tag liền nhau cộng dồn, tối đa 60 giây mỗi văn bản.
+
 ### 🦜 Clone giọng nói Zero-shot (SDK) <a name="cloning"></a>
 Clone bất kỳ giọng nào từ một clip ngắn. Clip mẫu được **tự khử nhiễu nền** và **cắt còn ≤ 8 giây** trước khi clone — cứ để `denoise=True` trừ khi clip đã sạch.
 

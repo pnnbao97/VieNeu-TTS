@@ -23,7 +23,7 @@ from .base import BaseVieneuTTS
 from ._v3_turbo_engine.rep_history import DEFAULT_REP_WINDOW
 from vieneu_utils.phonemize_text import (
     phonemize_text_with_emotions,
-    normalize_to_chunks_v3_with_gaps,
+    plan_v3_chunks,
 )
 from vieneu_utils.core_utils import (
     join_audio_chunks,
@@ -612,11 +612,10 @@ class V3TurboVieNeuTTS(BaseVieneuTTS):
         the reading style comes from the reference voice, so output is always the
         natural style.
         """
+        chunks, gaps, explicit_pauses = plan_v3_chunks(text, max_chars=max_chars)
         speaker_emb, ref_codes = self._resolve_ref(voice, ref_audio, denoise, use_ref_codes)
-
-        chunks, gaps = normalize_to_chunks_v3_with_gaps(text, max_chars=max_chars)
         if not chunks:
-            return np.array([], dtype=np.float32)
+            return join_audio_chunks([], self.sample_rate, explicit_pauses_ms=explicit_pauses)
 
         bs = self.max_batch_size if batch_size is None else max(1, int(batch_size))
         sampling = dict(
@@ -631,7 +630,8 @@ class V3TurboVieNeuTTS(BaseVieneuTTS):
 
         # Im lặng theo loại ranh giới: ngắt đoạn > hết câu > ngắt trong câu.
         final_wav = join_audio_chunks(
-            all_wavs, self.sample_rate, silence_ps=gaps_to_silence(gaps)
+            all_wavs, self.sample_rate, silence_ps=gaps_to_silence(gaps),
+            explicit_pauses_ms=explicit_pauses,
         )
         return self._apply_watermark(final_wav) if apply_watermark else final_wav
 
@@ -662,8 +662,14 @@ class V3TurboVieNeuTTS(BaseVieneuTTS):
         streams on an RTX 3060. On CPU/ONNX the engine's own frame-level
         streaming runs, one call at a time.
         """
+        chunks, gaps, explicit_pauses = plan_v3_chunks(text, max_chars=max_chars)
         speaker_emb, ref_codes = self._resolve_ref(voice, ref_audio, denoise, use_ref_codes)
-        chunks, gaps = normalize_to_chunks_v3_with_gaps(text, max_chars=max_chars)
+        sr = self.sample_rate
+        if not chunks:
+            if explicit_pauses:
+                yield np.zeros(explicit_pauses[0] * sr // 1000, dtype=np.float32)
+            return
+
         pauses = gaps_to_silence(gaps)
         sampling = dict(
             temperature=temperature, top_k=top_k, top_p=top_p,
@@ -676,9 +682,11 @@ class V3TurboVieNeuTTS(BaseVieneuTTS):
         else:
             per_chunk = self._stream_chunks_engine(chunks, speaker_emb, ref_codes,
                                                    use_ref_codes, max_new_frames, sampling)
-        sr = self.sample_rate
         last_out: Optional[np.ndarray] = None   # mẩu audio cuối đã phát của chunk trước
         for ci, subs in enumerate(per_chunk):
+            if ci in explicit_pauses:
+                yield np.zeros(explicit_pauses[ci] * sr // 1000, dtype=np.float32)
+                last_out = None
             first = True
             for sub in subs:
                 if sub is None or len(sub) == 0:
@@ -693,6 +701,8 @@ class V3TurboVieNeuTTS(BaseVieneuTTS):
                 first = False
                 last_out = sub
                 yield self._apply_watermark(sub) if apply_watermark else sub
+        if len(chunks) in explicit_pauses:
+            yield np.zeros(explicit_pauses[len(chunks)] * sr // 1000, dtype=np.float32)
 
     def _stream_chunks_engine(self, chunks, speaker_emb, ref_codes, use_ref_codes,
                               max_new_frames, sampling):
@@ -785,7 +795,6 @@ class V3TurboVieNeuTTS(BaseVieneuTTS):
         if not texts:
             return []
 
-        speaker_emb, ref_codes = self._resolve_ref(voice, ref_audio, denoise, use_ref_codes)
         bs = self.max_batch_size if batch_size is None else max(1, int(batch_size))
         sampling = dict(
             temperature=temperature, top_k=top_k, top_p=top_p,
@@ -794,23 +803,24 @@ class V3TurboVieNeuTTS(BaseVieneuTTS):
         )
 
         # Cắt chunk từng text, nhớ chunk thuộc text nào (owner) và gaps để join lại.
-        per_text_gaps: List[Any] = []
+        per_text_gaps: List[List[str]] = []
+        per_text_pauses: List[dict[int, int]] = []
         flat_chunks: List[str] = []
         owner: List[int] = []
         for ti, t in enumerate(texts):
-            chunks, gaps = normalize_to_chunks_v3_with_gaps(t, max_chars=max_chars)
+            chunks, gaps, explicit_pauses = plan_v3_chunks(t, max_chars=max_chars)
             per_text_gaps.append(gaps)
+            per_text_pauses.append(explicit_pauses)
             for c in chunks:
                 flat_chunks.append(c)
                 owner.append(ti)
 
-        empty = np.array([], dtype=np.float32)
-        if not flat_chunks:
-            return [empty for _ in texts]
-
-        flat_wavs = self._infer_chunks(
-            flat_chunks, speaker_emb, ref_codes, use_ref_codes, bs, sampling
-        )
+        speaker_emb, ref_codes = self._resolve_ref(voice, ref_audio, denoise, use_ref_codes)
+        flat_wavs = []
+        if flat_chunks:
+            flat_wavs = self._infer_chunks(
+                flat_chunks, speaker_emb, ref_codes, use_ref_codes, bs, sampling
+            )
 
         # Gom wav về đúng text (thứ tự flat_wavs khớp flat_chunks/owner), rồi join từng text.
         grouped: List[List[np.ndarray]] = [[] for _ in texts]
@@ -819,13 +829,11 @@ class V3TurboVieNeuTTS(BaseVieneuTTS):
 
         results: List[np.ndarray] = []
         for ti in range(len(texts)):
-            if not grouped[ti]:
-                results.append(empty)
-                continue
             joined = join_audio_chunks(
-                grouped[ti], self.sample_rate, silence_ps=gaps_to_silence(per_text_gaps[ti])
+                grouped[ti], self.sample_rate, silence_ps=gaps_to_silence(per_text_gaps[ti]),
+                explicit_pauses_ms=per_text_pauses[ti],
             )
-            results.append(self._apply_watermark(joined) if apply_watermark else joined)
+            results.append(self._apply_watermark(joined) if apply_watermark and grouped[ti] else joined)
         return results
 
     def close(self) -> None:
