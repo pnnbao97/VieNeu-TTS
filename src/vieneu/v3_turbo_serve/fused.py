@@ -51,6 +51,8 @@ import torch.nn.functional as F
 
 from transformers.models.qwen3.modeling_qwen3 import apply_rotary_pos_emb
 
+from .._v3_turbo_engine.capture_lock import CAPTURE_LOCK
+
 
 # ── repetition history on the device ─────────────────────────────────────────
 
@@ -431,27 +433,35 @@ class FusedFrame:
         called before every frame — a server's cancel check, which used to
         hang off the backbone step this loop no longer calls. Returns per-row
         codes ``(T_b, n_vq)`` on the device.
+
+        The device work holds ``CAPTURE_LOCK`` shared, one frame at a time, so a
+        capture in another thread (another graph) waits for at most a frame.
+        Only the thread that owns this graph may call ``run``.
         """
         B = self.B
-        self.bb.load(cache, attn_mask, cur_pos)
-        self.h.copy_(h0)
-        self.finished.zero_()
-        self.length.zero_()
-        self.frame.zero_()
-        self.all_done.zero_()
-        self.caps.copy_(torch.as_tensor(caps, dtype=torch.long, device=self.caps.device))
-        if self.rep is not None:
-            self.rep.reset()
-        if self.spk is not None:
-            if spk is None:
-                raise ValueError("this model needs a speaker anchor for every row")
-            self.spk.copy_(spk.to(self.spk.dtype))
+        with CAPTURE_LOCK.shared():
+            self.bb.load(cache, attn_mask, cur_pos)
+            self.h.copy_(h0)
+            self.finished.zero_()
+            self.length.zero_()
+            self.frame.zero_()
+            self.all_done.zero_()
+            self.caps.copy_(torch.as_tensor(caps, dtype=torch.long, device=self.caps.device))
+            if self.rep is not None:
+                self.rep.reset()
+            if self.spk is not None:
+                if spk is None:
+                    raise ValueError("this model needs a speaker anchor for every row")
+                self.spk.copy_(spk.to(self.spk.dtype))
         for _ in range(min(int(max_new_frames), self.max_frames)):
             if on_frame is not None:
                 on_frame()
-            self.graph.replay()
-            if bool(self.all_done):
+            with CAPTURE_LOCK.shared():
+                self.graph.replay()
+                done = bool(self.all_done)
+            if done:
                 break
-        # Rows still running at the cap keep everything they produced.
-        length = torch.where(self.finished, self.length, self.frame.expand(B)).tolist()
-        return [self.codes[:length[b], b].clone() for b in range(B)]
+        with CAPTURE_LOCK.shared():
+            # Rows still running at the cap keep everything they produced.
+            length = torch.where(self.finished, self.length, self.frame.expand(B)).tolist()
+            return [self.codes[:length[b], b].clone() for b in range(B)]

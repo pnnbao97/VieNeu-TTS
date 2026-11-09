@@ -30,6 +30,7 @@ _STREAM_LEADIN_FRAMES = 4
 from .configuration_v3_turbo import VieNeuV3TurboConfig
 from .hub_load_v3_turbo import load_v3_turbo_checkpoint
 from .modeling_v3_turbo import VieNeuV3TurboForTTS, _sample_token
+from .capture_lock import CAPTURE_LOCK, gpu_work
 from .rep_history import DEFAULT_REP_WINDOW, RepetitionHistory
 from vieneu_utils.core_utils import (BABBLE_MAX_RETRIES, CODEC_SAMPLES_PER_FRAME, babble_suspect,
                                      babble_prefer, babble_log_line)
@@ -114,6 +115,7 @@ class VieNeuTTSv3Turbo:
         """
         return int(self.config.default_style_token_id)
 
+    @gpu_work
     def _resolve_speaker_emb(self, speaker_emb: Optional[np.ndarray]) -> Optional[torch.Tensor]:
         if not self.use_speaker_embedding:
             return None
@@ -210,6 +212,8 @@ class VieNeuTTSv3Turbo:
             ref_codes = None
         style_id = self._resolve_style_id()
         prompt_2d = self._build_prompt_2d(phonemes, None, ref_codes, style_id)
+        # The stream before this one may hold _lock while it waits for a capture.
+        CAPTURE_LOCK.ensure_not_held("infer_stream")
         with self._lock:
             yield from self._stream_generate(prompt_2d, spk_t, temperature, top_k, top_p, max_new_frames, chunk_frames, repetition_penalty=repetition_penalty, repetition_window=repetition_window)
 
@@ -225,16 +229,19 @@ class VieNeuTTSv3Turbo:
 
     @torch.no_grad()
     def _generate_codes(self, phonemes, text, ref_codes, speaker_emb, style, use_ref_codes, temperature, top_k, top_p, max_new_frames, repetition_penalty: float=1.2, repetition_window: int=DEFAULT_REP_WINDOW) -> torch.LongTensor:
+        # Device work holds CAPTURE_LOCK shared frame by frame: a capture in
+        # another thread waits for one frame, not for the whole utterance.
         style_id = self._resolve_style_id()   # `style` deprecated/ignored
-        spk_t = self._resolve_speaker_emb(speaker_emb)
-        if not use_ref_codes:
-            ref_codes = None
-        prompt_2d = self._build_prompt_2d(phonemes, text, ref_codes, style_id)
-        input_2d = prompt_2d.unsqueeze(0).to(self.device)
-        prefill_embeds = self.model._build_inputs_embeds(input_2d, speaker_emb=spk_t)
-        prefill_out = self.model.semantic_backbone(inputs_embeds=prefill_embeds, use_cache=True, return_dict=True)
-        past_kv = prefill_out.past_key_values
-        h = prefill_out.last_hidden_state[:, -1]
+        with CAPTURE_LOCK.shared():
+            spk_t = self._resolve_speaker_emb(speaker_emb)
+            if not use_ref_codes:
+                ref_codes = None
+            prompt_2d = self._build_prompt_2d(phonemes, text, ref_codes, style_id)
+            input_2d = prompt_2d.unsqueeze(0).to(self.device)
+            prefill_embeds = self.model._build_inputs_embeds(input_2d, speaker_emb=spk_t)
+            prefill_out = self.model.semantic_backbone(inputs_embeds=prefill_embeds, use_cache=True, return_dict=True)
+            past_kv = prefill_out.past_key_values
+            h = prefill_out.last_hidden_state[:, -1]
         all_codes: List[torch.LongTensor] = []
         eos_id = self.config.speech_generation_end_token_id
         sgs_id = self.config.speech_generation_start_token_id
@@ -242,28 +249,31 @@ class VieNeuTTSv3Turbo:
         audio_pad = self.config.audio_pad_token_id
         hist = RepetitionHistory(n_vq, repetition_window) if not math.isclose(repetition_penalty, 1.0) else None
         for _ in range(max_new_frames):
-            frame_codes, last_local_out = self.model.decode_one_frame(h, text_token_id=torch.tensor([sgs_id], device=self.device), temperature=temperature, top_k=top_k, audio_top_p=top_p, repetition_penalty=repetition_penalty, history_by_channel=hist)
-            all_codes.append(frame_codes.cpu())
-            text_logits = self.model.text_lm_head(last_local_out[0, 0]).float()
-            if int(text_logits.argmax().item()) == eos_id:
-                break
-            slot_row = torch.full((1, 1, n_vq + 1), audio_pad, dtype=torch.long, device=self.device)
-            self._prepare_gen_slot_row(slot_row, frame_codes=frame_codes, sgs_id=sgs_id, audio_pad=audio_pad)
-            slot_embed = self.model._build_inputs_embeds(slot_row, speaker_emb=spk_t)
-            step_out = self.model.semantic_backbone(inputs_embeds=slot_embed, past_key_values=past_kv, use_cache=True, return_dict=True)
-            past_kv = step_out.past_key_values
-            h = step_out.last_hidden_state[:, 0]
+            with CAPTURE_LOCK.shared():
+                frame_codes, last_local_out = self.model.decode_one_frame(h, text_token_id=torch.tensor([sgs_id], device=self.device), temperature=temperature, top_k=top_k, audio_top_p=top_p, repetition_penalty=repetition_penalty, history_by_channel=hist)
+                all_codes.append(frame_codes.cpu())
+                text_logits = self.model.text_lm_head(last_local_out[0, 0]).float()
+                if int(text_logits.argmax().item()) == eos_id:
+                    break
+                slot_row = torch.full((1, 1, n_vq + 1), audio_pad, dtype=torch.long, device=self.device)
+                self._prepare_gen_slot_row(slot_row, frame_codes=frame_codes, sgs_id=sgs_id, audio_pad=audio_pad)
+                slot_embed = self.model._build_inputs_embeds(slot_row, speaker_emb=spk_t)
+                step_out = self.model.semantic_backbone(inputs_embeds=slot_embed, past_key_values=past_kv, use_cache=True, return_dict=True)
+                past_kv = step_out.past_key_values
+                h = step_out.last_hidden_state[:, 0]
         if not all_codes:
             return torch.zeros(0, self.config.n_vq, dtype=torch.long)
         return torch.stack(all_codes)
 
     @torch.no_grad()
     def _stream_generate(self, prompt_2d, spk_t, temperature, top_k, top_p, max_new_frames, chunk_frames, repetition_penalty: float=1.2, repetition_window: int=DEFAULT_REP_WINDOW) -> Generator[np.ndarray, None, None]:
-        input_2d = prompt_2d.unsqueeze(0).to(self.device)
-        prefill_embeds = self.model._build_inputs_embeds(input_2d, speaker_emb=spk_t)
-        prefill_out = self.model.semantic_backbone(inputs_embeds=prefill_embeds, use_cache=True, return_dict=True)
-        past_kv = prefill_out.past_key_values
-        h = prefill_out.last_hidden_state[:, -1]
+        # Device work holds CAPTURE_LOCK shared step by step, never across a yield.
+        with CAPTURE_LOCK.shared():
+            input_2d = prompt_2d.unsqueeze(0).to(self.device)
+            prefill_embeds = self.model._build_inputs_embeds(input_2d, speaker_emb=spk_t)
+            prefill_out = self.model.semantic_backbone(inputs_embeds=prefill_embeds, use_cache=True, return_dict=True)
+            past_kv = prefill_out.past_key_values
+            h = prefill_out.last_hidden_state[:, -1]
         eos_id = self.config.speech_generation_end_token_id
         sgs_id = self.config.speech_generation_start_token_id
         n_vq = self.config.n_vq
@@ -289,17 +299,18 @@ class VieNeuTTSv3Turbo:
             return cap
         try:
             for _ in range(max_new_frames):
-                frame_codes, last_local_out = self.model.decode_one_frame(h, text_token_id=torch.tensor([sgs_id], device=self.device), temperature=temperature, top_k=top_k, audio_top_p=top_p, repetition_penalty=repetition_penalty, history_by_channel=hist)
-                buffer.append(frame_codes.cpu())
-                text_logits = self.model.text_lm_head(last_local_out[0, 0]).float()
-                if int(text_logits.argmax().item()) == eos_id:
-                    break
-                slot_row = torch.full((1, 1, n_vq + 1), audio_pad, dtype=torch.long, device=self.device)
-                self._prepare_gen_slot_row(slot_row, frame_codes=frame_codes, sgs_id=sgs_id, audio_pad=audio_pad)
-                slot_embed = self.model._build_inputs_embeds(slot_row, speaker_emb=spk_t)
-                step_out = self.model.semantic_backbone(inputs_embeds=slot_embed, past_key_values=past_kv, use_cache=True, return_dict=True)
-                past_kv = step_out.past_key_values
-                h = step_out.last_hidden_state[:, 0]
+                with CAPTURE_LOCK.shared():
+                    frame_codes, last_local_out = self.model.decode_one_frame(h, text_token_id=torch.tensor([sgs_id], device=self.device), temperature=temperature, top_k=top_k, audio_top_p=top_p, repetition_penalty=repetition_penalty, history_by_channel=hist)
+                    buffer.append(frame_codes.cpu())
+                    text_logits = self.model.text_lm_head(last_local_out[0, 0]).float()
+                    if int(text_logits.argmax().item()) == eos_id:
+                        break
+                    slot_row = torch.full((1, 1, n_vq + 1), audio_pad, dtype=torch.long, device=self.device)
+                    self._prepare_gen_slot_row(slot_row, frame_codes=frame_codes, sgs_id=sgs_id, audio_pad=audio_pad)
+                    slot_embed = self.model._build_inputs_embeds(slot_row, speaker_emb=spk_t)
+                    step_out = self.model.semantic_backbone(inputs_embeds=slot_embed, past_key_values=past_kv, use_cache=True, return_dict=True)
+                    past_kv = step_out.past_key_values
+                    h = step_out.last_hidden_state[:, 0]
                 if len(buffer) >= _target_frames():
                     wav = self._decode_codes_stream(torch.stack(buffer), reset=first_decode)
                     first_decode = False
@@ -368,6 +379,7 @@ class VieNeuTTSv3Turbo:
             import torchaudio
             return torchaudio.functional.resample(wav, sr, target)
 
+    @gpu_work
     def _encode_ref_wav(self, wav: torch.Tensor, sr: int) -> np.ndarray:
         """Waveform ``(ch, n)`` → MOSS codes ``(T, n_vq)``, ``T = n_padded / 3840``.
 
@@ -395,6 +407,7 @@ class VieNeuTTSv3Turbo:
         wav, sr = self._load_mono(ref_audio_path, None)
         return self._encode_ref_wav(wav, sr)
 
+    @gpu_work
     @torch.no_grad()
     def _decode_codes(self, codes: torch.LongTensor) -> np.ndarray:
         if codes.numel() == 0:
@@ -403,6 +416,7 @@ class VieNeuTTSv3Turbo:
         dec = self.audio_tokenizer.decode(c, return_dict=True)
         return dec.audio[0].mean(0).cpu().float().numpy()
 
+    @gpu_work
     @torch.no_grad()
     def _decode_codes_stream(self, codes: torch.LongTensor, *, reset: bool) -> np.ndarray:
         c2d = codes.permute(1, 0).to(self.device)
@@ -412,6 +426,7 @@ class VieNeuTTSv3Turbo:
             audio = audio[:, :, : int(out.audio_lengths[0].item())]
         return audio[0].mean(0).cpu().float().numpy()
 
+    @gpu_work
     def _reset_stream_session(self) -> None:
         reset = getattr(self.audio_tokenizer, '_reset_batch_decode_streaming_state', None)
         if callable(reset):
