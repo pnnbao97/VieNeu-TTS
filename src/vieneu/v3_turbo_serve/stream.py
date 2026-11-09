@@ -44,6 +44,10 @@ Caveats
 * ``repetition_window`` is the ring size of the on-device history, fixed per
   scheduler; requests asking for another window get the scheduler's.
 * No babble/short-row retry: audio is already on its way.
+* Each tick holds ``CAPTURE_LOCK`` shared (``_v3_turbo_engine/capture_lock.py``):
+  when a batch engine in the same process captures a new graph (~0.5 s, once
+  per batch bucket / cache length / sampling setting), the streams pause for it
+  instead of breaking the capture.
 * A request with bad input (voice, reference codes, sampling) fails alone. If
   the worker itself dies, every waiting request gets the error, ``submit``
   refuses new work and ``error`` says why: restart the process.
@@ -59,6 +63,7 @@ import numpy as np
 import torch
 
 from vieneu_utils.core_utils import check_sampling
+from .._v3_turbo_engine.capture_lock import CAPTURE_LOCK
 from .._v3_turbo_engine.rep_history import DEFAULT_REP_WINDOW
 from .fused import GpuRepHistory, StaticBackbone, acoustic_frame_gpu, sample_gpu_rows
 
@@ -224,6 +229,9 @@ class StreamHandle:
     def __iter__(self):
         try:
             while True:
+                # The worker's next tick may be queued behind a capture that
+                # waits for this thread: never wait here holding CAPTURE_LOCK.
+                CAPTURE_LOCK.ensure_not_held("infer_stream")
                 item = self.q.get()
                 if item is None:
                     return
@@ -265,8 +273,11 @@ class V3TurboStreamScheduler:
         # clocks (``nvidia-smi -lgc``) or set "prefer maximum performance".
         self.max_admit = max(1, int(max_admit_per_tick))
         self.repetition_window = int(repetition_window)
-        self.frame = StreamFrame(self.model, self.B, int(self.cfg.max_position_embeddings),
-                                 repetition_window=self.repetition_window)
+        # Built in the caller's thread while batch runs may be going on in
+        # others: the capture keeps every other v3 Turbo GPU job out.
+        with CAPTURE_LOCK.exclusive():
+            self.frame = StreamFrame(self.model, self.B, int(self.cfg.max_position_embeddings),
+                                     repetition_window=self.repetition_window)
         self.tick = 0
         self._slots: List[Optional[StreamHandle]] = [None] * self.B
         self._codec_rows: List[StreamHandle] = []   # order the codec session knows
@@ -330,10 +341,13 @@ class V3TurboStreamScheduler:
                         self._cv.wait()
                     if not self._running:
                         break
-                self._admit()
-                if self.n_active == 0:
-                    continue
-                self._step()
+                # One tick is GPU work (prefill, replay, codec): a capture in
+                # another thread (a batch engine's new graph) waits for it, and
+                # the next tick waits for the capture.
+                with CAPTURE_LOCK.shared():
+                    self._admit()
+                    if self.n_active:
+                        self._step()
         except BaseException as e:   # noqa: BLE001 — everything waiting must hear about it
             logger.exception("stream scheduler died")
             self._shutdown(e, crashed=True)
@@ -516,7 +530,8 @@ class V3TurboStreamScheduler:
         reset = getattr(self.tok, "_reset_batch_decode_streaming_state", None)
         if callable(reset):
             try:
-                reset()
+                with CAPTURE_LOCK.shared():   # frees the codec's device state
+                    reset()
             except Exception:   # noqa: BLE001
                 pass
         self._codec_fresh = True

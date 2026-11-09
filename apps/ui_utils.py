@@ -98,8 +98,12 @@ def cleanup_gpu_memory():
     if 'torch' in sys.modules:
         import torch
         if hasattr(torch, 'cuda') and torch.cuda.is_available():
-            torch.cuda.empty_cache()
-            torch.cuda.synchronize()
+            # Another tab may be capturing a v3 Turbo CUDA graph: a sync or
+            # cache release in the middle would break it (see capture_lock.py).
+            from vieneu._v3_turbo_engine.capture_lock import CAPTURE_LOCK
+            with CAPTURE_LOCK.shared():
+                torch.cuda.empty_cache()
+                torch.cuda.synchronize()
         if hasattr(torch, 'backends') and hasattr(torch.backends, 'mps') and torch.backends.mps.is_available():
             torch.mps.empty_cache()
         if hasattr(torch, 'xpu') and torch.xpu.is_available():

@@ -219,6 +219,9 @@ class V3TurboVieNeuTTS(BaseVieneuTTS):
         # Static-batching (GPU/PyTorch). Dựng lười ở lần batch đầu; None trên CPU/ONNX.
         self.max_batch_size = max(1, int(max_batch_size))
         self._batch_engine = None
+        # One batch engine per model: a second one would capture, and keep, a
+        # second set of CUDA graphs.
+        self._batch_lock = threading.Lock()
         # Streaming scheduler (GPU/PyTorch): một worker thread + một CUDA graph
         # phục vụ mọi `infer_stream` đang chạy. Dựng lười ở lần stream đầu.
         self.max_streams = max(1, int(max_streams))
@@ -498,9 +501,14 @@ class V3TurboVieNeuTTS(BaseVieneuTTS):
         if self.backend != "pytorch":
             return None
         if self._batch_engine is None:
-            from .v3_turbo_serve import V3TurboBatchEngine
-            self._batch_engine = V3TurboBatchEngine(self.engine)
-            self._batch_engine.babble_retries = self.babble_retries
+            # A server's loader thread (warm-up) and its first request can get
+            # here together; both must end up with the same engine.
+            with self._batch_lock:
+                if self._batch_engine is None:
+                    from .v3_turbo_serve import V3TurboBatchEngine
+                    engine = V3TurboBatchEngine(self.engine)
+                    engine.babble_retries = self.babble_retries
+                    self._batch_engine = engine
         return self._batch_engine
 
     def _fused_available(self) -> bool:
@@ -518,6 +526,10 @@ class V3TurboVieNeuTTS(BaseVieneuTTS):
         """
         if not self._fused_available():
             return None
+        # The scheduler is captured under _stream_lock: a thread holding
+        # CAPTURE_LOCK must not wait for it.
+        from ._v3_turbo_engine.capture_lock import CAPTURE_LOCK
+        CAPTURE_LOCK.ensure_not_held("infer_stream")
         with self._stream_lock:
             if self._stream_sched is None:
                 from .v3_turbo_serve.stream import V3TurboStreamScheduler
