@@ -8,6 +8,13 @@ VieNeu-TTS hỗ trợ tải và sử dụng các mô hình tùy chỉnh từ Hug
 2.  **Custom Finetune Models**: Model fine-tune đầy đủ (Full Finetune) dựa trên VieNeu-TTS.
 3.  **GGUF Quantized Models**: Model lượng tử hóa GGUF (chạy trên CPU/llama.cpp).
 
+### ✅ Custom v3 Turbo
+
+Bạn cũng có thể nhập đường dẫn local của checkpoint v3 Turbo vào **Custom Model**,
+ví dụ `C:\Users\CaoPhuc\Projects\VieNeu-TTS-v3-Turbo`. WebUI sẽ nhận diện
+`model_type: vieneu_v3_turbo` (hoặc tên có `v3-Turbo`) và tự dùng backend v3 Turbo
+riêng, không đi qua Transformers/LMDeploy cũ.
+
 ---
 
 ## 📌 Mục lục
