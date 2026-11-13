@@ -518,7 +518,6 @@ def load_model(backbone_choice: str, codec_choice: str, device_choice: str,
 
                         # Save voices.json to cache directory so FastVieNeuTTS can find it
                         print(f"   • Saving voices definition...")
-                        import json
                         voices_json_path = os.path.join(cache_dir, "voices.json")
                         voices_content = {
                              "meta": { "note": "Automatically generated during LoRA merge" },
