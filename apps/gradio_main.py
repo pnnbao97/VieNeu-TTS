@@ -14,6 +14,7 @@ import soundfile as sf
 import tempfile
 from vieneu import Vieneu
 import os
+import json
 import time
 import numpy as np
 import queue
@@ -333,6 +334,7 @@ def load_model(backbone_choice: str, codec_choice: str, device_choice: str,
         # Prepare Backbone Config/Repo
         custom_loading = False
         is_merged_lora = False
+        is_custom_v3_turbo = False
 
         if backbone_choice == "Custom Model":
             custom_loading = True
@@ -374,6 +376,27 @@ def load_model(backbone_choice: str, codec_choice: str, device_choice: str,
                     "supports_streaming": False, # Assume false for unknown
                     "description": f"Custom Model: {custom_model_id}"
                 }
+
+                # v3 Turbo has its own engine and must not be sent through the
+                # legacy Transformers/standard backend. Detect both local
+                # checkpoints and Hugging Face repo IDs.
+                custom_repo = custom_model_id.strip()
+                is_custom_v3_turbo = "v3-turbo" in custom_repo.lower()
+                if os.path.isdir(custom_repo):
+                    for config_path in (
+                        os.path.join(custom_repo, "config.json"),
+                        os.path.join(custom_repo, "update", "config.json"),
+                    ):
+                        if not os.path.isfile(config_path):
+                            continue
+                        try:
+                            with open(config_path, encoding="utf-8") as config_file:
+                                config = json.load(config_file)
+                        except (OSError, ValueError):
+                            continue
+                        if config.get("model_type") == "vieneu_v3_turbo":
+                            is_custom_v3_turbo = True
+                            break
         else:
             backbone_config = BACKBONE_CONFIGS[backbone_choice]
             
@@ -382,7 +405,10 @@ def load_model(backbone_choice: str, codec_choice: str, device_choice: str,
         
         # Override LMDeploy if custom
         if custom_loading:
-             if "gguf" in backbone_config['repo'].lower() or "v2-turbo" in backbone_config['repo'].lower():
+             if is_custom_v3_turbo:
+                 # v3 Turbo always uses its dedicated PyTorch/ONNX engine.
+                 use_lmdeploy = False
+             elif "gguf" in backbone_config['repo'].lower() or "v2-turbo" in backbone_config['repo'].lower():
                  # GGUF must use Standard/Turbo backend
                  use_lmdeploy = False
              elif is_merged_lora:
@@ -492,7 +518,6 @@ def load_model(backbone_choice: str, codec_choice: str, device_choice: str,
 
                         # Save voices.json to cache directory so FastVieNeuTTS can find it
                         print(f"   • Saving voices definition...")
-                        import json
                         voices_json_path = os.path.join(cache_dir, "voices.json")
                         voices_content = {
                              "meta": { "note": "Automatically generated during LoRA merge" },
@@ -645,6 +670,17 @@ def load_model(backbone_choice: str, codec_choice: str, device_choice: str,
                     device=v3_device,
                     precision=v3_precision,
                     hf_token=custom_hf_token,
+                )
+            elif is_custom_v3_turbo:
+                # Custom v3 Turbo checkpoints use the same dedicated engine as
+                # the built-in v3 Turbo model, including local model paths.
+                print("   🆕 Custom v3 Turbo (CPU=ONNX / GPU=PyTorch)")
+                v3_device = "cpu" if str(backbone_device).lower() == "cpu" else "auto"
+                tts = Vieneu(
+                    mode="v3turbo",
+                    backbone_repo=backbone_config["repo"],
+                    device=v3_device,
+                    precision=backbone_config.get("precision", "fp32"),
                 )
             elif "v2-Turbo" in backbone_choice:
                 # VieNeu v2 Turbo uses the dedicated backend
