@@ -14,15 +14,21 @@ Public API dùng ở đây:
 """
 import time
 import io
+import importlib
 import wave
 from pathlib import Path
-from typing import Optional
+from typing import Any, Optional
 
-import numpy as np
-from fastapi import FastAPI
-from fastapi.responses import FileResponse, StreamingResponse, Response
-from pydantic import BaseModel
-import uvicorn
+np = importlib.import_module("numpy")
+_fastapi = importlib.import_module("fastapi")
+FastAPI = _fastapi.FastAPI
+_fastapi_responses = importlib.import_module("fastapi.responses")
+FileResponse = _fastapi_responses.FileResponse
+StreamingResponse = _fastapi_responses.StreamingResponse
+Response = _fastapi_responses.Response
+_pydantic = importlib.import_module("pydantic")
+BaseModel = _pydantic.BaseModel
+uvicorn = importlib.import_module("uvicorn")
 
 from vieneu import Vieneu
 
@@ -83,7 +89,7 @@ async def voices():
         return [{"id": "", "name": f"⚠️ {e}"}]
 
 
-def _pcm16(audio_f32: np.ndarray) -> bytes:
+def _pcm16(audio_f32: Any) -> bytes:
     return (np.asarray(audio_f32) * 32767).clip(-32768, 32767).astype(np.int16).tobytes()
 
 
