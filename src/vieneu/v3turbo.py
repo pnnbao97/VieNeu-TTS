@@ -109,22 +109,25 @@ class V3TurboVieNeuTTS(BaseVieneuTTS):
                 wav_trimmed = wav[start:end]
 
         if out_path is None:
+            tmp_kwargs = {"prefix": "temp_clone_optimized_", "suffix": ".wav"}
             try:
                 secure_dir = Path.home() / ".cache" / "vieneu" / "tmp"
-            except Exception:
-                secure_dir = Path("./outputs/tmp")
-
-            secure_dir.mkdir(parents=True, exist_ok=True)
-            try:
-                secure_dir.chmod(0o700)
-            except Exception:
-                pass
-
-            fd, out_path = tempfile.mkstemp(
-                prefix="temp_clone_optimized_",
-                suffix=".wav",
-                dir=str(secure_dir)
-            )
+                secure_dir.mkdir(parents=True, exist_ok=True)
+                try:
+                    secure_dir.chmod(0o700)
+                except OSError:
+                    pass
+                fd, out_path = tempfile.mkstemp(dir=str(secure_dir), **tmp_kwargs)
+            except (OSError, RuntimeError) as e:
+                # ~/.cache can be unwritable (Windows "[WinError 5] Access is
+                # denied" from folder ACLs or antivirus, read-only home, no home
+                # at all). Fall back to the system temp dir: mkstemp still
+                # creates the file with O_EXCL and mode 0600, so it stays safe.
+                logger.warning(
+                    "Cannot use ~/.cache/vieneu/tmp for the cleaned reference (%s); "
+                    "using the system temp directory instead.", e,
+                )
+                fd, out_path = tempfile.mkstemp(**tmp_kwargs)
             os.close(fd)
             out_path = Path(out_path)
 
