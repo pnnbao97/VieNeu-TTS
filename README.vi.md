@@ -17,7 +17,9 @@
 >
 > VieNeu-TTS v4 clone giọng với độ trung thực **gần như bản gốc**: chỉ cần một clip ngắn là tái tạo được giọng với độ giống rất cao.
 >
-> Vì khả năng clone quá mạnh và nguy cơ bị lạm dụng, **v4 là bản độc quyền, không mã nguồn mở**. v4 chỉ có qua **VieNeu API / vieneu.io**.
+> Vì khả năng clone quá mạnh và nguy cơ bị lạm dụng, **v4 là bản độc quyền, không mã nguồn mở**. v4 chỉ có qua **[VieNeu API](https://docs.vieneu.io/vi/) / [vieneu.io](https://www.vieneu.io)**.
+>
+> **Dùng v4 trong code hoặc qua trợ lý AI:** tài liệu API ở **[docs.vieneu.io](https://docs.vieneu.io/vi/)** — base URL `https://api.vieneu.io/api/v1`, `POST /v1/audio/speech` tương thích OpenAI. Bản cho máy đọc: [llms.txt](https://docs.vieneu.io/llms.txt), [OpenAPI](https://docs.vieneu.io/openapi.json). Không cần code: máy chủ MCP `https://api.vieneu.io/mcp` dùng được trong Claude, ChatGPT, Cursor ([hướng dẫn](https://docs.vieneu.io/vi/docs/integrations/mcp)).
 >
 > **VieNeu-TTS v3 Turbo vẫn là bản mã nguồn mở mới nhất trong repo này.** Các bản mở tiếp theo, kể cả v3.x, cũng sẽ được phát hành ở đây.
 

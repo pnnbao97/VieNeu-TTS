@@ -5,6 +5,8 @@
 [![Hugging Face v3 Turbo](https://img.shields.io/badge/%F0%9F%A4%97%20Hugging%20Face-v3%20Turbo-red)](https://huggingface.co/pnnbao-ump/VieNeu-TTS-v3-Turbo)
 [![License](https://img.shields.io/badge/License-Apache%202.0-green.svg)](https://opensource.org/licenses/Apache-2.0)
 
+> **Looking for VieNeu-TTS v4?** v4 is not in this package. It is a hosted API: docs at [docs.vieneu.io](https://docs.vieneu.io) ([llms.txt](https://docs.vieneu.io/llms.txt), [OpenAPI](https://docs.vieneu.io/openapi.json)), base URL `https://api.vieneu.io/api/v1`, OpenAI-compatible `POST /v1/audio/speech`.
+
 ## ✨ Key Features
 - **v3 Turbo, 48 kHz** — high-fidelity, natural Vietnamese speech (default).
 - **Torch-free on CPU** — minimal install runs on ONNX Runtime; PyTorch is never imported.

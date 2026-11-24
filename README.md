@@ -17,7 +17,9 @@
 >
 > VieNeu-TTS v4 delivers **near-original voice cloning fidelity**, allowing a short reference clip to be reproduced with very high speaker similarity.
 >
-> Due to the strength of its voice-cloning capabilities and the potential for misuse, **v4 is proprietary and will not be open-sourced**. It is available exclusively through the **VieNeu API / vieneu.io**.
+> Due to the strength of its voice-cloning capabilities and the potential for misuse, **v4 is proprietary and will not be open-sourced**. It is available exclusively through the **[VieNeu API](https://docs.vieneu.io) / [vieneu.io](https://www.vieneu.io)**.
+>
+> **Using v4 from code or an AI agent:** API docs at **[docs.vieneu.io](https://docs.vieneu.io)** — base URL `https://api.vieneu.io/api/v1`, OpenAI-compatible `POST /v1/audio/speech`. Machine-readable: [llms.txt](https://docs.vieneu.io/llms.txt), [OpenAPI spec](https://docs.vieneu.io/openapi.json). No code: the hosted MCP server `https://api.vieneu.io/mcp` works in Claude, ChatGPT and Cursor ([guide](https://docs.vieneu.io/docs/integrations/mcp)).
 >
 > **VieNeu-TTS v3 Turbo remains the latest open-source version available in this repository.** Future open-source releases, including potential v3.x updates, may also be published here.
 
