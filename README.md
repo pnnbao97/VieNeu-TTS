@@ -597,11 +597,11 @@ The merged model speaks that one voice from its packed speaker embedding (no ref
 
 ## 🌟 Star History
 
-<a href="https://github.com/pnnbao97/VieNeu-TTS/stargazers">
+<a href="https://www.star-history.com/?repos=pnnbao97%2Fvieneu-tts&type=date&legend=top-left">
  <picture>
-   <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/pnnbao97/star-charts/main/charts/pnnbao97/VieNeu-TTS/dark.svg" />
-   <source media="(prefers-color-scheme: light)" srcset="https://raw.githubusercontent.com/pnnbao97/star-charts/main/charts/pnnbao97/VieNeu-TTS/light.svg" />
-   <img alt="Star History Chart" src="https://raw.githubusercontent.com/pnnbao97/star-charts/main/charts/pnnbao97/VieNeu-TTS/light.svg" />
+   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/chart?repos=pnnbao97/vieneu-tts&type=date&theme=dark&legend=top-left" />
+   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/chart?repos=pnnbao97/vieneu-tts&type=date&legend=top-left" />
+   <img alt="Star History Chart" src="https://api.star-history.com/chart?repos=pnnbao97/vieneu-tts&type=date&legend=top-left" />
  </picture>
 </a>
 
